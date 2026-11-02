@@ -8,9 +8,20 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.7.23"
+VERSION = "0.7.24"
 
 CHANGELOG = [
+    {
+        "version": "0.7.24",
+        "date": "2026-11-02",
+        "changes": [
+            "Desktop music: a queue panel you can show and hide, and the quality badge in the player bar",
+            "The queue button in the desktop player bar now opens a queue panel beside the page (press Q too) instead of taking you to a separate page",
+            "The panel stays open while you browse, follows the song and any change to the queue, and jumps to a song when you click it",
+            "The player bar shows what is playing (FLAC Lossless, MP3 kbps, or the converted rate), like the phone player",
+            "click it to change streaming quality",
+        ]
+    },
     {
         "version": "0.7.23",
         "date": "2026-11-02",

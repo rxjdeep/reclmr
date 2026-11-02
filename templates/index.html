@@ -10,9 +10,9 @@
   <meta name="theme-color" content="#0a0a0f">
   <link rel="manifest" href="/static/manifest.json">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/css/app.css?v=333">
-  <link rel="stylesheet" href="/static/css/onboarding.css?v=333">
-  <link rel="stylesheet" href="/static/css/gallery.css?v=333">
+  <link rel="stylesheet" href="/static/css/app.css?v=334">
+  <link rel="stylesheet" href="/static/css/onboarding.css?v=334">
+  <link rel="stylesheet" href="/static/css/gallery.css?v=334">
   <link rel="stylesheet" href="/static/vendor/xterm/xterm.min.css">
   <title>Project Recl/\mr</title>
 </head>
@@ -120,6 +120,10 @@
         <div class="wm-bar" id="wm-bar"></div>
         <div class="wm-content" id="wm-content"></div>
       </section>
+      <aside class="sp-qp" id="sp-qp" aria-label="Queue">
+        <div class="sp-qp-head"><b>Queue</b><button class="sp-qp-clear" data-act="sp-clearq">Clear</button><button class="sp-qp-x" data-act="sp-qp-close" aria-label="Close queue" title="Close queue"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+        <div class="sp-qp-list" id="sp-qp-list"></div>
+      </aside>
       <div class="wm-split" id="wm-split" role="separator" aria-orientation="vertical" tabindex="0" title="Drag to resize · double-click to reset"></div>
     </div>
     <footer class="wm-transport">
@@ -151,11 +155,12 @@
         </div>
       </div>
       <div class="wm-right">
+        <div class="sp-np-qual wm-qual" id="wm-qual" data-act="sp-qual" role="button" tabindex="0" title="Streaming quality" hidden></div>
         <button class="wm-ctl" id="wm-mute" onclick="mzToggleMute()" aria-label="Mute" title="Mute"></button>
         <input type="range" id="wm-vol" min="0" max="100" value="100" aria-label="Volume">
         <button class="wm-ctl" id="wm-devbtn" onclick="mzDevicesMenu(event)" aria-label="Connect to a device" title="Connect to a device"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="14" height="10" rx="1.5"/><line x1="6" y1="18" x2="12" y2="18"/><line x1="9" y1="14" x2="9" y2="18"/><rect x="16" y="9" width="6" height="11" rx="1.5"/></svg></button>
         <button class="wm-ctl wm-lyrbtn" id="wm-lyrbtn" onclick="mzSp.lyricsToggle()" aria-label="Lyrics" title="Lyrics"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M4 10h10M4 15h16M4 20h8"/></svg></button>
-        <button class="wm-ctl wm-npbtn" id="wm-npbtn" onclick="mzGo('now')" aria-label="Now Playing" title="Now Playing"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></button>
+        <button class="wm-ctl wm-npbtn" id="wm-npbtn" onclick="mzSp.npBtn()" aria-label="Queue" title="Queue"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 12h11M4 18h6"/><path d="M16 15l5 3-5 3z" fill="currentColor"/></svg></button>
       </div>
     </footer>
     <nav class="sp-tabbar" id="sp-tabbar" aria-label="Spotify navigation">
@@ -1307,37 +1312,37 @@
   </div>
 </div>
 
-<script src="/static/js/thinking-orbs.js?v=333"></script>
-<script src="/static/js/modules/auth.js?v=333"></script>
-<script src="/static/js/modules/onboarding.js?v=333"></script>
-<script src="/static/js/modules/core.js?v=333"></script>
-<script src="/static/js/modules/nav.js?v=333"></script>
-<script src="/static/js/modules/media-session.js?v=333"></script>
-<script src="/static/js/modules/home.js?v=333"></script>
- <script src="/static/js/modules/liquid.js?v=333"></script>
- <script src="/static/js/modules/musicgen.js?v=333"></script>
- <script src="/static/js/modules/models.js?v=333"></script>
-<script src="/static/js/modules/projects.js?v=333"></script>
-<script src="/static/js/modules/audiobooks.js?v=333"></script>
-<script src="/static/js/modules/ui-kit.js?v=333"></script>
-<script src="/static/js/modules/gallery.js?v=333"></script>
-<script src="/static/js/modules/lego.js?v=333"></script>
-<script src="/static/js/modules/logs.js?v=333"></script>
-<script src="/static/js/modules/terminal.js?v=333"></script>
-<script src="/static/js/modules/osint.js?v=333"></script>
-<script src="/static/js/modules/universe.js?v=333"></script>
-<script src="/static/js/modules/system.js?v=333"></script>
-<script src="/static/js/modules/ollama.js?v=333"></script>
-<script src="/static/js/modules/comfy.js?v=333"></script>
-<script src="/static/js/modules/lego3d.js?v=333"></script>
-<script src="/static/js/modules/voice.js?v=333"></script>
-<script src="/static/js/modules/journal.js?v=333"></script>
-<script src="/static/js/modules/legos3d.js?v=333"></script>
-<script src="/static/js/modules/settings.js?v=333"></script>
-<script src="/static/js/modules/telemetry.js?v=333"></script>
-<script src="/static/js/modules/desktop.js?v=333"></script>
-<script src="/static/js/modules/music.js?v=333"></script>
-<script src="/static/js/modules/music-spotify.js?v=333"></script>
+<script src="/static/js/thinking-orbs.js?v=334"></script>
+<script src="/static/js/modules/auth.js?v=334"></script>
+<script src="/static/js/modules/onboarding.js?v=334"></script>
+<script src="/static/js/modules/core.js?v=334"></script>
+<script src="/static/js/modules/nav.js?v=334"></script>
+<script src="/static/js/modules/media-session.js?v=334"></script>
+<script src="/static/js/modules/home.js?v=334"></script>
+ <script src="/static/js/modules/liquid.js?v=334"></script>
+ <script src="/static/js/modules/musicgen.js?v=334"></script>
+ <script src="/static/js/modules/models.js?v=334"></script>
+<script src="/static/js/modules/projects.js?v=334"></script>
+<script src="/static/js/modules/audiobooks.js?v=334"></script>
+<script src="/static/js/modules/ui-kit.js?v=334"></script>
+<script src="/static/js/modules/gallery.js?v=334"></script>
+<script src="/static/js/modules/lego.js?v=334"></script>
+<script src="/static/js/modules/logs.js?v=334"></script>
+<script src="/static/js/modules/terminal.js?v=334"></script>
+<script src="/static/js/modules/osint.js?v=334"></script>
+<script src="/static/js/modules/universe.js?v=334"></script>
+<script src="/static/js/modules/system.js?v=334"></script>
+<script src="/static/js/modules/ollama.js?v=334"></script>
+<script src="/static/js/modules/comfy.js?v=334"></script>
+<script src="/static/js/modules/lego3d.js?v=334"></script>
+<script src="/static/js/modules/voice.js?v=334"></script>
+<script src="/static/js/modules/journal.js?v=334"></script>
+<script src="/static/js/modules/legos3d.js?v=334"></script>
+<script src="/static/js/modules/settings.js?v=334"></script>
+<script src="/static/js/modules/telemetry.js?v=334"></script>
+<script src="/static/js/modules/desktop.js?v=334"></script>
+<script src="/static/js/modules/music.js?v=334"></script>
+<script src="/static/js/modules/music-spotify.js?v=334"></script>
 
 <!-- ═══ ONBOARDING OVERLAY ═══ -->
 <div id="onboarding-overlay" class="onboarding-overlay" style="display:none">

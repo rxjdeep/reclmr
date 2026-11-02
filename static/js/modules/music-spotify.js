@@ -618,7 +618,7 @@ var mzSp = (function () {
     if (mz.view === same) content.scrollTop = keep;
     tint(mzEl('sp-page'), vw.tint, vw.hue || 230);
     mzMarkPlaying();
-    SP.markCtx(); SP.dselSync();
+    SP.markCtx(); SP.dselSync(); SP.qpSync();
     coversAhead(content);
     barsSoon();
   };
@@ -747,6 +747,7 @@ var mzSp = (function () {
       case 'sp-creditsall': { mz.spCreditsAll = !mz.spCreditsAll; var ct = mzCur(); if (ct) npCards(ct); break; }
       case 'sp-artistmenu': { var arm = mz.artists.get(v); if (arm) SP.artistMenu(arm); break; }
       case 'sp-qual': { var qt = mzCur(); if (qt) SP.qualMenu(qt); break; }
+      case 'sp-qp-close': SP.qpToggle(); break;
       case 'sp-plmenu': { var plm = mz.playlists.filter(function (x) { return x.id === v; })[0]; if (plm) SP.playlistMenu(plm); break; }
       case 'sp-albummenu': { var alm = mz.albums.get(v); if (alm) SP.albumMenu(alm); break; }
       case 'sp-playpage': mzPlayList(mz.ctx, 0); break;
@@ -896,6 +897,34 @@ var mzSp = (function () {
     }
   };
   SP.npQueue = function () { navSet('music/queue'); SP.qSet(true, true); };
+  // ─── desktop queue panel: a column beside the page that the queue button shows and hides (it stays open while you browse) ───
+  var qpSig = '', qpCur = '';
+  function qpOpen() { return mz.theme === 'spotify' && !!mz.prefs.qp && !(typeof mzIsMobile === 'function' && mzIsMobile()); }
+  function qpRow(t, i) {
+    var on = i === mz.qi;
+    return '<div class="sp-qp-row' + (on ? ' playing' : '') + '" data-act="q-jump" data-c="' + i + '" data-t="' + esc(t.f) + '">' + trackCov(t, 100, 'sm') +
+      '<div class="tt"><b>' + esc(t.t) + '</b><small>' + esc(t.ar) + '</small></div><time>' + mzFmt(t.d) + '</time></div>';
+  }
+  SP.qpSync = function () {
+    var w = document.querySelector('#music-screen .wm'); if (!w) return;
+    var on = qpOpen(); w.classList.toggle('qp-open', on);
+    var b = mzEl('wm-npbtn'); if (b) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+    var list = mzEl('sp-qp-list'); if (!on || !list) return;
+    var sig = qSignature() + ':' + mz.queue.length;
+    if (sig === qpSig) return;
+    qpSig = sig;
+    var cur = mzCur();
+    if (!cur) { list.innerHTML = '<div class="sp-qp-empty">Nothing in the queue</div>'; return; }
+    var next = mz.queue.slice(mz.qi + 1, mz.qi + 201), keep = qpCur === cur.f ? list.scrollTop : 0;   // a new song starts the list from the top again
+    qpCur = cur.f;
+    list.innerHTML = '<h3>Now playing</h3>' + qpRow(cur, mz.qi) +
+      (next.length ? '<h3>Next in queue</h3>' + next.map(function (t, n) { return qpRow(t, mz.qi + 1 + n); }).join('') : '<div class="sp-qp-empty">Nothing up next</div>');
+    list.scrollTop = keep;
+  };
+  SP.qpToggle = function () { mz.prefs.qp = !mz.prefs.qp; mzSavePrefs(); qpSig = ''; SP.qpSync(); };
+  SP.npBtn = function () {                                         // the queue button: the panel on a desktop, the page elsewhere
+    if (mz.theme === 'spotify' && !(typeof mzIsMobile === 'function' && mzIsMobile())) SP.qpToggle(); else mzGo('now');
+  };
   SP.qClose = function () {
     if (nav.cur === 'music/queue' && navCanBack()) { history.back(); return; }      // the back gesture does the same, so history stays in step
     SP.qSet(false, true); navReplace('music/player');
@@ -1047,21 +1076,24 @@ var mzSp = (function () {
       if (e.dataset.k === c.k && e.dataset.v === c.v && e.tagName !== 'BUTTON' && !e.closest('button, .sp-rx')) e.classList.add('playing-ctx');
     });
   };
-  SP.npQualRefresh = function () { var t = mzCur(); if (t) npQual(t); };
-  function npQual(t) {
-    var el = mzEl('sp-np-qual'); if (!el) return;
-    var fmt = String(t.sx || '').toLowerCase();
-    if (!fmt) { el.hidden = true; return; }
-    var parts = [], rate = typeof mzQualityRate === 'function' ? mzQualityRate() : 0;
-    if (rate) {                                                    // what is actually being streamed: the converted copy, not the file
-      el.hidden = false;
-      el.innerHTML = '<span class="sp-q-fmt">MP3</span><span class="sp-q-txt">' + rate + ' kbps \u2022 from ' + esc(fmt.toUpperCase()) + '</span>';
-      return;
-    }
+  SP.npQualRefresh = function () { var t = mzCur(); npQual(t); };
+  // what is playing, as a little badge: the converted MP3 when the server is streaming a lower rate, otherwise the file itself
+  function qualHtml(t) {
+    var fmt = String(t && t.sx || '').toLowerCase();
+    if (!fmt) return '';
+    var rate = typeof mzQualityRate === 'function' ? mzQualityRate() : 0, parts = [];
+    if (rate) return '<span class="sp-q-fmt">MP3</span><span class="sp-q-txt">' + rate + ' kbps \u2022 from ' + esc(fmt.toUpperCase()) + '</span>';
     if (LOSSLESS[fmt]) parts.push('Lossless');
     if (t.br) parts.push(t.br + ' kbps');
-    el.hidden = false;
-    el.innerHTML = '<span class="sp-q-fmt">' + esc(fmt.toUpperCase()) + '</span>' + (parts.length ? '<span class="sp-q-txt">' + esc(parts.join(' \u2022 ')) + '</span>' : '');
+    return '<span class="sp-q-fmt">' + esc(fmt.toUpperCase()) + '</span>' + (parts.length ? '<span class="sp-q-txt">' + esc(parts.join(' \u2022 ')) + '</span>' : '');
+  }
+  function npQual(t) {                                             // the phone's full-screen player and the desktop player bar
+    ['sp-np-qual', 'wm-qual'].forEach(function (id) {
+      var el = mzEl(id); if (!el) return;
+      var h = t ? qualHtml(t) : '';
+      el.hidden = !h;
+      if (h && el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; }
+    });
   }
 
   // "Playing from …" follows what the queue was started from (playlist, artist, Liked Songs), falling back to the song's album

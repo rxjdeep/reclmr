@@ -645,6 +645,7 @@ function mzSnapshot() {
   };
 }
 function mzSaveState(force) {
+  if (typeof mzSp !== 'undefined' && mzSp && mzSp.qpSync) mzSp.qpSync();      // the queue panel follows every change to the queue
   if (mz.remote) return;                           // a remote only mirrors; it must not overwrite the session
   var now = Date.now();
   if (!force && now - mzSaveAt < 2000) return;
@@ -1285,6 +1286,7 @@ function mzUpdateNow(quiet) {
   if (mz.view.type === 'now') mzRender(); else mzMarkPlaying();
   mzUpdateModes(); mzSyncHeart();
   if (typeof mzSp !== 'undefined' && mzSp && mzSp.npRefresh) mzSp.npRefresh();             // the open player follows the new song now, not at its next poll
+  if (typeof mzSp !== 'undefined' && mzSp && mzSp.npQualRefresh) mzSp.npQualRefresh();       // the quality badge in the player bar
 }
 
 // ─── visualizer: Trap Nation ───────────────────────────────────────────────────────
@@ -1868,6 +1870,7 @@ function mzBindUI() {
     else if (e.key === 'ArrowUp') { e.preventDefault(); mzSelect(Math.max(0, mz.sel - 1)); }
     else if (e.key === 'Enter' && mz.sel >= 0) mzPlayCtx(mz.sel);
     else if (e.key === 'n') nextSong();
+    else if (e.key === 'q' && mz.theme === 'spotify' && typeof mzSp !== 'undefined' && mzSp && mzSp.npBtn) mzSp.npBtn();
     else if (e.key === 'p') prevSong();
   });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) mzVizStart(); });
