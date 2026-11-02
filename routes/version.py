@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.7.22"
+VERSION = "0.7.23"
 
 CHANGELOG = [
+    {
+        "version": "0.7.23",
+        "date": "2026-11-02",
+        "changes": [
+            "Fix the endless reload loop (only the logo showing) when a script fails to load",
+            "A script that failed to load made the page reload again and again, because the saved mark was wiped before it could be checked",
+            "now it retries once a minute, then shows the recovery screen",
+            "The first script now loads from the saved copy like the rest",
+        ]
+    },
     {
         "version": "0.7.22",
         "date": "2026-10-31",

@@ -104,9 +104,15 @@ window.addEventListener('error', function(e) {
   if (!t || t.tagName !== 'SCRIPT' || !t.src) return;
   setTimeout(function() {                          // scripts cancelled by a normal navigation or refresh are not failures
     if (reclmrLeaving) return;
+    // One retry per file per minute. (The saved mark used to be wiped by the page's load event, which fires before this timer, so a
+    // flaky connection reloaded the page again and again and left only the logo showing.) After that, say so instead of looping.
     try {
-      if (sessionStorage.getItem('reclmr_script_retry') === t.src) return;
-      sessionStorage.setItem('reclmr_script_retry', t.src);
+      var last = JSON.parse(sessionStorage.getItem('reclmr_script_retry') || 'null');
+      if (last && last.src === t.src && Date.now() - last.at < 60000) {
+        showCrashRecovery(new Error('Could not load ' + t.src + ' (network problem?)'));
+        return;
+      }
+      sessionStorage.setItem('reclmr_script_retry', JSON.stringify({ src: t.src, at: Date.now() }));
     } catch (_) { return; }
     console.warn('Script failed to load, retrying page:', t.src);
     location.reload();
@@ -115,7 +121,6 @@ window.addEventListener('error', function(e) {
 var reclmrLeaving = false;
 window.addEventListener('pagehide', function() { reclmrLeaving = true; });
 window.addEventListener('beforeunload', function() { reclmrLeaving = true; });
-window.addEventListener('load', function() { try { sessionStorage.removeItem('reclmr_script_retry'); } catch (_) {} });
 
 window.addEventListener('error', function(e) {
   // Ignore errors from Safari's native share sheet / visibility changes
