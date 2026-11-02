@@ -29,6 +29,8 @@ try {
 try { mz.prefs.sideW = Object.assign({ glossy: 232, spotify: 320 }, mz.prefs.sideW || {}); } catch (_) {}
 mz.theme = 'glossy';
 try { var _mzt = localStorage.getItem('mzTheme'); if (_mzt === 'spotify' || _mzt === 'glossy') mz.theme = _mzt; } catch (_) {}
+mz.skin = 'classic';                                                  // the two looks of the Spotify theme on a desktop: 'classic' or 'modern'
+try { if (localStorage.getItem('mzSkin') === 'modern') mz.skin = 'modern'; } catch (_) {}
 mz.mixCache = {};
 function mzDefaultType() { return mz.theme === 'spotify' ? 'home' : 'albums'; }
 (function () { var w = document.querySelector('#music-screen .wm'); if (w) w.dataset.mzt = mz.theme; })();
@@ -1627,15 +1629,18 @@ var MZ_NP_ICON = {
   spotify: '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M15 15H1v-1.5h14V15zm0-4.5H1V9h14v1.5zm-14-7A2.5 2.5 0 0 1 3.5 1h9a2.5 2.5 0 0 1 0 5h-9A2.5 2.5 0 0 1 1 3.5zm2.5-1a1 1 0 0 0 0 2h9a1 1 0 1 0 0-2h-9z"/></svg>',
 };
 function mzApplyTheme() {
-  var w = document.querySelector('#music-screen .wm'); if (w) w.dataset.mzt = mz.theme;
+  var w = document.querySelector('#music-screen .wm'); if (w) { w.dataset.mzt = mz.theme; w.dataset.skin = mz.theme === 'spotify' ? mz.skin : ''; }
   var np = mzEl('wm-npbtn'); if (np) np.innerHTML = MZ_NP_ICON[mz.theme];
   var si = mzEl('wm-search-input'); if (si) si.placeholder = mz.theme === 'spotify' ? 'What do you want to play?' : 'Search';
   mzSyncHeart(); mzApplySizes();
   if (mzCur()) mzNowText(mzCur());
   if (typeof mzSp !== 'undefined' && mzSp && mzSp.coverApply) mzSp.coverApply();
 }
-function mzSetTheme(name) {
-  if (name === mz.theme || (name !== 'glossy' && name !== 'spotify')) return;
+function mzSetTheme(name) {                                         // 'glossy', 'spotify' (classic) or 'modern' (the Spotify theme with the newer look)
+  var skin = name === 'modern' ? 'modern' : 'classic', th = name === 'modern' ? 'spotify' : name;
+  if ((th !== 'glossy' && th !== 'spotify') || (th === mz.theme && (th !== 'spotify' || skin === mz.skin))) return;
+  name = th;
+  if (th === 'spotify') { mz.skin = skin; try { localStorage.setItem('mzSkin', skin); } catch (_) {} }
   var wasDefault = mz.view.type === mzDefaultType() && !mz.view.key;
   mz.theme = name;
   try { localStorage.setItem('mzTheme', name); } catch (_) {}
@@ -1647,12 +1652,12 @@ function mzSetTheme(name) {
   mzRender();
   var c = mzEl('wm-content'); if (c) c.scrollTop = 0;
   mzHaptic('select');
-  mzToast(name === 'spotify' ? 'Theme: Spotify' : 'Theme: Glossy Black');
+  mzToast(name === 'spotify' ? (mz.skin === 'modern' ? 'Theme: Spotify Modern' : 'Theme: Spotify Classic') : 'Theme: Glossy Black');
 }
 function mzThemeMenu(e) {
   e.stopPropagation();
   if (mzUseSheet()) {
-    var th = [{ label: 'Glossy Black', on: mz.theme === 'glossy', run: function () { mzSetTheme('glossy'); } }, { label: 'Spotify', on: mz.theme === 'spotify', run: function () { mzSetTheme('spotify'); } }];
+    var th = [{ label: 'Glossy Black', on: mz.theme === 'glossy', run: function () { mzSetTheme('glossy'); } }, { label: 'Spotify Classic', on: mz.theme === 'spotify' && mz.skin !== 'modern', run: function () { mzSetTheme('spotify'); } }, { label: 'Spotify Modern', on: mz.theme === 'spotify' && mz.skin === 'modern', run: function () { mzSetTheme('modern'); } }];
     if (typeof navigator.vibrate === 'function' && (mz.coarse || /Android/i.test(navigator.userAgent))) { th.push({ sep: true }); th.push({ label: 'Vibration feedback', on: mz.prefs.haptics !== false, run: function () { mzToggleHaptics(); } }); }
     th.push({ sep: true }); th.push({ label: 'Back to recl/\\mr', run: function () { goHome(); } });
     th.unshift({ label: 'Streaming quality', sub: mzQualityLabel(), run: function () { setTimeout(mzQualityMenu, 330); } }, { sep: true });
@@ -1660,8 +1665,8 @@ function mzThemeMenu(e) {
     return;
   }
   var m = mzEl('wm-menu');
-  function it(v, label) { return '<button data-act="theme" data-v="' + v + '">' + (mz.theme === v ? '✓ ' : '\u2003') + label + '</button>'; }
-  m.innerHTML = '<div class="wm-menu-h">Theme</div>' + it('glossy', 'Glossy Black') + it('spotify', 'Spotify') +
+  function it(v, label, on) { return '<button data-act="theme" data-v="' + v + '">' + (on ? '✓ ' : '\u2003') + label + '</button>'; }
+  m.innerHTML = '<div class="wm-menu-h">Theme</div>' + it('glossy', 'Glossy Black', mz.theme === 'glossy') + it('spotify', 'Spotify Classic', mz.theme === 'spotify' && mz.skin !== 'modern') + it('modern', 'Spotify Modern', mz.theme === 'spotify' && mz.skin === 'modern') +
     (typeof navigator.vibrate === 'function' && (mz.coarse || /Android/i.test(navigator.userAgent)) ? '<hr><button data-act="haptics">' + (mz.prefs.haptics === false ? '\u2003' : '✓ ') + 'Vibration feedback</button>' : '') +
     '<hr><button data-act="quality">Streaming quality…</button>' +
     '<hr><button data-act="exit">Back to recl/\\mr</button>';

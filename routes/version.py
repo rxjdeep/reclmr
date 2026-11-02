@@ -8,9 +8,20 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.7.24"
+VERSION = "0.7.25"
 
 CHANGELOG = [
+    {
+        "version": "0.7.25",
+        "date": "2026-11-02",
+        "changes": [
+            "Spotify Modern theme for the desktop player",
+            "New theme: Spotify Modern (profile menu > Theme), the newer Spotify web look: rounded floating panels, a dark search pill, a floating player card and a white play button",
+            "Spotify Classic is still there and unchanged",
+            "the choice is remembered",
+            "Playlist rows, the queue panel and the quality badge work the same in both",
+        ]
+    },
     {
         "version": "0.7.24",
         "date": "2026-11-02",
