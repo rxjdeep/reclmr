@@ -105,7 +105,7 @@ app.secret_key = SECRET_KEY
 # survive an app restart (still single-process - see note in save_sessions).
 SESSIONS_FILE = Path(os.environ.get('RECLMR_SESSIONS_FILE') or Path(__file__).parent / 'sessions.json')   # tests point this at a temp dir
 SESSION_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
-MAX_SESSIONS = 50
+MAX_SESSIONS = 500  # was 50: a full table evicted the oldest (real) session on every new login
 _session_lock = threading.Lock()
 
 

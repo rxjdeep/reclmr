@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.7.25"
+VERSION = "0.7.26"
 
 CHANGELOG = [
+    {
+        "version": "0.7.26",
+        "date": "2026-11-03",
+        "changes": [
+            "Session table no longer evicts real sessions",
+            "Raise session cap from 50 to 500 so logins (and test logins) stop kicking you out",
+        ]
+    },
     {
         "version": "0.7.25",
         "date": "2026-11-02",
