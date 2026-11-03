@@ -6927,7 +6927,7 @@ body.desktop-mode #music-screen { max-width: none; margin: 0; }
 .wm-toast[data-mzt="spotify"] .wm-toast-act { color: #148a3c; }
 
 /* swipe a song row right to queue it */
-@media (hover: none) { #music-screen .sp-row.trk[data-act], #music-screen .sp-row.trk [data-act] { touch-action: pan-y; } }   /* beats the blanket 'manipulation' on [data-act]: sideways drags stay ours, up/down still scrolls */
+@media (hover: none) { #music-screen .sp-row.trk[data-act], #music-screen .sp-row.trk [data-act], #music-screen .sp-qi-row[data-act], #music-screen .sp-qi-row [data-act] { touch-action: pan-y; } }   /* beats the blanket 'manipulation' on [data-act]: sideways drags stay ours, up/down still scrolls */
 .wm[data-mzt="spotify"] .sp-row.swq { background: linear-gradient(90deg, rgba(29,185,84,.55) var(--sw, 0px), transparent var(--sw, 0px)); position: relative; }
 .wm[data-mzt="spotify"] .sp-row.swq::before { content: "+ Queue"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: 800; color: #fff; opacity: .7; pointer-events: none; z-index: 2; }
 .wm[data-mzt="spotify"] .sp-row.swq-ok::before { opacity: 1; }
