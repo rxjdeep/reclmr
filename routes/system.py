@@ -6,8 +6,25 @@ from shared import _network_last, detect_os
 
 bp = Blueprint('system', __name__)
 
+_sys_cache = {'at': 0.0, 'resp': None}
+
+
 @bp.route('/api/system')
 def system_info():
+    """The same answer for 2 seconds. Every open page asks every 2 s, and each answer ran several programs (lscpu, lspci, nvidia-smi ...) and took ~0.6 s,
+    so a few tabs on a slow link kept the server busy answering the same question."""
+    now = time.time()
+    if _sys_cache['resp'] is None or now - _sys_cache['at'] > 2.0:
+        resp = _system_info()
+        if resp.status_code != 200:
+            return resp
+        _sys_cache.update(at=now, resp=(resp.get_data(), resp.mimetype))
+    data, mime = _sys_cache['resp']
+    from flask import Response
+    return Response(data, mimetype=mime)
+
+
+def _system_info():
     try:
         boot_time = psutil.boot_time()
         uptime = int(__import__('time').time() - boot_time)

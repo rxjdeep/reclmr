@@ -333,7 +333,11 @@ async function labPollRequests() {
   labPollRequests.on = true;
   clearTimeout(labPollRequests.t);
   let d = { shareable: false, requests: [] }, retry = false;
-  try { const r = await fetch('/api/lab/pair-requests'); retry = !r.ok; if (r.ok) d = await r.json(); } catch { retry = true; }
+  if (document.hidden) {                                   // nobody is looking: ask again when the tab comes back, not every 2.5 s meanwhile
+    labPollRequests.on = false; labPollRequests.t = setTimeout(labPollRequests, 15000); return;
+  }
+  const ac = new AbortController(), kill = setTimeout(() => ac.abort(), 8000);        // a request that never answers must not stall the loop
+  try { const r = await fetch('/api/lab/pair-requests', { signal: ac.signal }); retry = !r.ok; if (r.ok) d = await r.json(); } catch { retry = true; } finally { clearTimeout(kill); }
   let box = document.getElementById('lab-request-overlay');
   if (d.requests?.length && !box) { box = document.createElement('div'); box.id = 'lab-request-overlay'; document.body.appendChild(box); }
   if (box) box.innerHTML = (d.requests || []).map(q => `<div class="lab-panel lab-request" role="alertdialog" aria-label="Pairing request">

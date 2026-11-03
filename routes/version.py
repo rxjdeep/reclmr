@@ -8,9 +8,22 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.7.29"
+VERSION = "0.7.30"
 
 CHANGELOG = [
+    {
+        "version": "0.7.30",
+        "date": "2026-11-04",
+        "changes": [
+            "Fewer stalls: stop the endless background polling, time-limit slow requests",
+            "Home-screen stat chips only poll while the home screen is showing, one request at a time, 8 s limit",
+            "The pairing-request poll pauses in hidden tabs and gives up after 8 s",
+            "/api/system answer is reused for 2 s (it ran several programs per call)",
+            "Service worker serves a saved copy when the network has not answered in 8 s",
+            "Requests slower than 2 s are logged to the journal as [slow] with how many were in flight",
+            "Cache-bust counter only moves when a cached file changed",
+        ]
+    },
     {
         "version": "0.7.29",
         "date": "2026-11-04",

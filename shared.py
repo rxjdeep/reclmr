@@ -252,6 +252,43 @@ def ws_is_authenticated(environ: dict) -> bool:
     _purge_expired_sessions()
     return token in SESSIONS
 
+# Slow-request log: a page that "just stops loading" left nothing in the journal to look at. A request that takes > 2 s to START answering is
+# written there, with how many others were in flight at the time (a pile-up shows as a rising number).
+_inflight = {'n': 0}
+_inflight_lock = threading.Lock()
+
+
+@app.before_request
+def _timing_start():
+    from flask import g
+    g._t0 = time.time()
+    with _inflight_lock:
+        _inflight['n'] += 1
+
+
+@app.after_request
+def _timing_end(resp):
+    from flask import g, request as _rq
+    t0 = getattr(g, '_t0', None)
+    if t0 is not None:
+        g._t0 = None
+        with _inflight_lock:
+            _inflight['n'] = max(0, _inflight['n'] - 1)
+        d = time.time() - t0
+        if d > 2.0 and not resp.direct_passthrough:
+            print('[slow] %.1fs %s %s -> %s (%d in flight)' % (d, _rq.method, _rq.path, resp.status_code, _inflight['n']), flush=True)
+    return resp
+
+
+@app.teardown_request
+def _timing_abort(exc):
+    from flask import g
+    if getattr(g, '_t0', None) is not None:      # the request never reached after_request (an error): still count it as finished
+        g._t0 = None
+        with _inflight_lock:
+            _inflight['n'] = max(0, _inflight['n'] - 1)
+
+
 @app.before_request
 def _require_auth():
     """Gate all API endpoints behind session-token authentication."""

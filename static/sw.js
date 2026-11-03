@@ -1,5 +1,5 @@
 // reclmr Service Worker
-const CACHE_NAME = 'reclmr-v338';
+const CACHE_NAME = 'reclmr-v339';
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // activate immediately
@@ -55,16 +55,19 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Everything else: network first, the cache when offline
-  e.respondWith(
-    fetch(e.request)
-      .then(response => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-        }
-        return response;
-      })
-      .catch(() => caches.match(e.request))
-  );
+  // Everything else: network first, the cache when offline - or when the network has not answered in 8 s (a stalled connection used to hold the page
+  // for minutes, the browser's own time-out being that long, while a saved copy sat right here)
+  e.respondWith(new Promise(resolve => {
+    let done = false;
+    const answer = r => { if (!done) { done = true; resolve(r); } };
+    const slow = setTimeout(() => caches.match(e.request).then(hit => { if (hit) answer(hit); }), 8000);
+    fetch(e.request).then(response => {
+      clearTimeout(slow);
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+      }
+      answer(response);
+    }).catch(() => { clearTimeout(slow); caches.match(e.request).then(hit => answer(hit || Response.error())); });
+  }));
 });

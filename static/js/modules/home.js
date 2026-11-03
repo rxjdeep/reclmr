@@ -253,9 +253,19 @@ function updateChipGraph(key) {
   el.innerHTML = buildSparkline(data, 72, 32, stroke, labels[key] || key, currentVal);
 }
 
+// The little CPU/RAM/network chips on the home screen. They used to be asked for every 2 s whatever you were doing (also while a song played in
+// another screen, and in a hidden tab), with no limit on requests waiting for an answer: on a slow link they piled up and held the page's
+// connections, so the page itself loaded slowly. Now: only while the home screen is showing, one request at a time, and each gives up after 8 s.
+var _qsBusy = false;
 async function loadQuickStats() {
+  if (_qsBusy || document.hidden) return;
+  var hs = document.getElementById('home-screen');
+  if (hs && !hs.classList.contains('active')) return;
+  _qsBusy = true;
+  var ac = new AbortController(), kill = setTimeout(function () { ac.abort(); }, 8000);
   try {
-    const r = await fetch('/api/system');
+    const r = await fetch('/api/system', { signal: ac.signal });
+    clearTimeout(kill);
     const d = await r.json();
     const cpu = Math.round(d.cpu_percent || 0);
     const ram = Math.round(d.ram_percent || 0);
@@ -284,7 +294,7 @@ async function loadQuickStats() {
     var netEl = document.getElementById('chip-val-net');
     if (netEl) {
       // Fetch real network stats
-      fetch('/api/network/stats').then(r => r.json()).then(n => {
+      fetch('/api/network/stats', { signal: ac.signal }).then(r => r.json()).then(n => {
         var down = n.download_speed || n.download || 0;
         var up = n.upload_speed || n.upload || 0;
         var downStr = down >= 1048576 ? (down/1048576).toFixed(1) + ' MB/s' : (down/1024).toFixed(0) + ' KB/s';
@@ -298,7 +308,7 @@ async function loadQuickStats() {
     ['cpu','ram','gpu','disk','ssd'].forEach(function(key) {
       if (CHIP_GRAPH_MODE[key]) updateChipGraph(key);
     });
-  } catch {}
+  } catch {} finally { clearTimeout(kill); _qsBusy = false; }
 }
 
 function setChipValue(key, val) {

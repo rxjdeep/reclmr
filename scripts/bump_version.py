@@ -90,7 +90,14 @@ def main():
     page, sw = ROOT / 'templates' / 'index.html', ROOT / 'static' / 'sw.js'
     ptext, stext = page.read_text(), sw.read_text()
     nums = [int(n) for n in re.findall(r'\?v=(\d+)', ptext)]
-    if nums:
+    # Only when a file the browser caches changed: a bump makes every open page download all ~1.2 MB again, so a server-only release must not
+    try:
+        import subprocess
+        changed = subprocess.run(['git', '-C', str(ROOT), 'status', '--porcelain', '--', 'static', 'templates'],
+                                 capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        changed = 'unknown'
+    if nums and changed:
         n = max(nums) + 1
         page.write_text(re.sub(r'\?v=\d+', f'?v={n}', ptext))
         sw.write_text(re.sub(r"CACHE_NAME = 'reclmr-v\d+'", f"CACHE_NAME = 'reclmr-v{n}'", stext, count=1))
