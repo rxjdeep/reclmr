@@ -6488,7 +6488,7 @@ body.desktop-mode #music-screen { max-width: none; margin: 0; }
   .sp-q-list h3 { margin: 14px 4px 6px; font-size: 14px; font-weight: 700; color: #b3b3b3; }
   .sp-q-empty { padding: 40px 16px; text-align: center; color: #b3b3b3; }
   .sp-qi { position: relative; overflow: hidden; border-radius: 6px; }
-  .sp-qi-del { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding-right: 20px; background: #e22134; color: #fff; font-weight: 700; font-size: 14px; }
+  .sp-qi-del { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-start; padding-left: 20px; background: #e22134; color: #fff; font-weight: 700; font-size: 14px; }
   .sp-qi-row { position: relative; display: flex; align-items: center; gap: 12px; height: 60px; padding: 0 6px; background: #121212; touch-action: pan-y; cursor: pointer; }
   .sp-qi-row.playing .tt b { color: var(--sp-green); }
   .sp-qi-row .wm-art { width: 44px; height: 44px; flex-shrink: 0; border-radius: 4px; }

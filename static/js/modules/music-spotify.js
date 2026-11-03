@@ -856,7 +856,7 @@ var mzSp = (function () {
   SP.justDragged = function () { return Date.now() - lastDragAt < 400; };
   // ─── queue sheet ───────────────────────────────────────
   // Lives over the player: swipe up on the player (or press the queue button) to pull it up, swipe down on its header to put it away.
-  // Rows swipe left to remove.
+  // Rows swipe right to remove.
   var qEl = null, qIsOpen = false, qSig = '', swipeAt = 0;
   function qSheet() { return qEl || (qEl = mzEl('sp-q')); }
   var qVel = 0;                                                  // how fast the finger was moving when it let go of the queue (px/ms), so a flick closes it fast
@@ -945,7 +945,7 @@ var mzSp = (function () {
   function qBind() {
     var list = mzEl('sp-q-list'), head = mzEl('sp-q-head'), q = qSheet(); if (!list || !q) return;
     list.addEventListener('click', function (e) { if (Date.now() - swipeAt < 350) { e.stopPropagation(); e.preventDefault(); } }, true);   // a swipe is not a tap
-    // swipe a row left to remove it
+    // swipe a row right to remove it (the same direction as the other row swipes)
     var s = null;
     list.addEventListener('pointerdown', function (e) {
       var row = e.target.closest('.sp-qi-row'); if (!row || row.classList.contains('playing') || (e.pointerType === 'mouse' && e.button !== 0)) return;
@@ -956,12 +956,12 @@ var mzSp = (function () {
       var dx = e.clientX - s.x0, dy = e.clientY - s.y0;
       if (!s.lock) {
         if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        if (Math.abs(dx) > Math.abs(dy) * 1.2 && dx < 0) { s.lock = 'x'; try { s.row.setPointerCapture(s.id); } catch (_) {} }
-        else { s = null; return; }                                  // vertical (scrolling) or rightwards: leave it to the browser
+        if (Math.abs(dx) > Math.abs(dy) * 1.2 && dx > 0) { s.lock = 'x'; try { s.row.setPointerCapture(s.id); } catch (_) {} }
+        else { s = null; return; }                                  // vertical (scrolling) or leftwards: leave it to the browser
       }
       var now = performance.now();
       s.v = 0.6 * s.v + 0.4 * ((e.clientX - s.last.x) / Math.max(1, now - s.last.t)); s.last = { x: e.clientX, t: now };
-      s.dx = Math.min(0, dx); s.row.style.transition = 'none'; s.row.style.transform = 'translate3d(' + s.dx + 'px,0,0)';
+      s.dx = Math.max(0, dx); s.row.style.transition = 'none'; s.row.style.transform = 'translate3d(' + s.dx + 'px,0,0)';
     });
     function done(e, cancelled) {
       if (!s || e.pointerId !== s.id) return;
@@ -970,8 +970,8 @@ var mzSp = (function () {
       swipeAt = Date.now();
       try { d.row.releasePointerCapture(d.id); } catch (_) {}
       var w = d.row.offsetWidth || 300;
-      if (!cancelled && (-d.dx > w * 0.35 || d.v < -0.6)) {
-        d.row.style.transition = 'transform .2s ease-out'; d.row.style.transform = 'translate3d(' + (-w) + 'px,0,0)';
+      if (!cancelled && (d.dx > w * 0.35 || d.v > 0.6)) {
+        d.row.style.transition = 'transform .2s ease-out'; d.row.style.transform = 'translate3d(' + w + 'px,0,0)';
         var c = parseInt(d.row.dataset.c, 10);
         setTimeout(function () { qRemove(c); }, 190);
       } else { d.row.style.transition = 'transform .25s cubic-bezier(.32,.72,0,1)'; d.row.style.transform = ''; }
