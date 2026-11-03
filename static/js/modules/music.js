@@ -1269,6 +1269,48 @@ function mzBindAudio() {
       if (typeof mzSp !== 'undefined' && mzSp && mzSp.npQualRefresh) mzSp.npQualRefresh();
     }).catch(function () {});
   });
+  // ── a song that stops by itself ──
+  // The player had no answer to a stalled stream (a dropped connection, a server restart, Navidrome closing the file early): the element
+  // just sat there, silent, and after the one converted-copy retry an error ended the music for good. Now: note what happened (kept for
+  // diagnosis: copy(localStorage.mzDiag) in the console), and when the position has not moved for 6 s while it should be playing, reload
+  // the same song from where it was; a second failure within 30 s asks for the converted copy; a third gives up and says so.
+  var diag = [];
+  function diagPush(ev, extra) {
+    var a = musicAudio, t = mzCur();
+    diag.push({ t: new Date().toISOString().slice(11, 19), ev: ev, song: t ? t.f : '', pos: a ? Math.round(a.currentTime) : 0, rs: a ? a.readyState : 0, ns: a ? a.networkState : 0,
+      err: a && a.error ? a.error.code : 0, hid: document.hidden ? 1 : 0, x: extra || '' });
+    if (diag.length > 60) diag.shift();
+    try { localStorage.setItem('mzDiag', JSON.stringify(diag)); } catch (_) {}
+  }
+  window.mzDiag = function () { return diag.slice(); };
+  ['waiting', 'stalled', 'emptied'].forEach(function (ev) { musicAudio.addEventListener(ev, function () { diagPush(ev); }); });
+  musicAudio.addEventListener('pause', function () { diagPush('pause', musicAudio.ended ? 'ended' : ''); });
+  var wd = { pos: -1, since: 0, tries: 0, lastTry: 0, song: '' };
+  function recover(why) {
+    var t = mzCur(); if (!t || mz.remote) return;
+    var now = Date.now(), pos = musicAudio.currentTime || 0;
+    wd.tries = now - wd.lastTry < 30000 ? wd.tries + 1 : 1; wd.lastTry = now;
+    diagPush('recover', why + ' #' + wd.tries);
+    if (wd.tries > 3) { if (typeof mzToast === 'function') mzToast('Playback stalled. Press play to try again'); mzSetPlayIcon(false); return; }
+    mz.resumeAt = pos;
+    if (wd.tries >= 2) mz.fb = true;
+    musicAudio.src = wd.tries >= 2 ? '/api/music/stream/' + mzEnc(t.f) + '?fb=1' : mzStreamUrl(t);
+    mzTryPlay(null);
+  }
+  setInterval(function () {
+    var a = musicAudio; if (!a || a.paused || a.ended || mz.remote || mz.seeking || !a.src) { wd.since = 0; return; }
+    var t = mzCur(); if (!t) return;
+    if (wd.song !== t.f) { wd.song = t.f; wd.pos = -1; wd.since = 0; wd.tries = 0; }
+    var moved = Math.abs(a.currentTime - wd.pos) > 0.05;
+    wd.pos = a.currentTime;
+    if (moved) { wd.since = 0; return; }
+    if (!wd.since) { wd.since = Date.now(); return; }
+    if (Date.now() - wd.since >= 6000) { wd.since = 0; recover('no progress, readyState ' + a.readyState); }
+  }, 2000);
+  musicAudio.addEventListener('ended', function () {
+    var d = musicAudio.duration, c = musicAudio.currentTime;
+    if (isFinite(d) && d > 10 && d - c > 5 && !mz.seeking) diagPush('ended-early', Math.round(d - c) + 's short');      // the file ended before its length: a cut stream, not a finished song
+  });
   musicAudio.onerror = function () {
     var t = mzCur(); if (!t || !musicAudio.src) return;
     // A signed-out session also ends here (the stream answers 401): say so, instead of trying a converted copy that cannot load either
