@@ -1,31 +1,42 @@
 """Telemetry, app usage, and logs routes."""
 from flask import Blueprint, jsonify, request, Response
-import json, time, re
+import json, time, re, threading
 from shared import TELEMETRY_DIR, USAGE_FILE, LOG_FILE, _read_logs
 
 bp = Blueprint('telemetry', __name__)
+_usage_lock = threading.Lock()
+USAGE_MAX = 5000
 
 @bp.route('/api/telemetry/app-usage', methods=['GET', 'POST'])
 def app_usage():
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
-        app_id = data.get('app_id', 'unknown')
+        app_id = str(data.get('app_id', 'unknown'))[:64]
         action = data.get('action', 'open')
-        duration = data.get('duration', 0)
+        if action not in ('open', 'close'):
+            action = 'open'
+        try:
+            duration = max(0, min(int(float(data.get('duration', 0))), 86400))
+        except (TypeError, ValueError):
+            duration = 0
         entry = {
             'app_id': app_id,
             'action': action,
             'duration': duration,
             'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S'),
         }
-        log = []
-        if USAGE_FILE.exists():
-            try:
-                log = json.loads(USAGE_FILE.read_text())
-            except Exception:
-                log = []
-        log.append(entry)
-        USAGE_FILE.write_text(json.dumps(log, indent=2))
+        with _usage_lock:     # one writer at a time: two tabs posting together used to be able to corrupt the file
+            log = []
+            if USAGE_FILE.exists():
+                try:
+                    log = json.loads(USAGE_FILE.read_text())
+                except Exception:
+                    log = []
+            log.append(entry)
+            log = log[-USAGE_MAX:]    # it used to grow forever
+            tmp = USAGE_FILE.with_suffix('.tmp')
+            tmp.write_text(json.dumps(log))
+            tmp.replace(USAGE_FILE)
         return jsonify({'ok': True, 'entry': entry})
 
     # GET - aggregated stats

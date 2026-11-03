@@ -8,9 +8,26 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.7.26"
+VERSION = "0.7.27"
 
 CHANGELOG = [
+    {
+        "version": "0.7.27",
+        "date": "2026-11-04",
+        "changes": [
+            "Fix the causes of the music/gallery drop-outs found in review",
+            "Full session table drops the least recently used session, not the oldest",
+            "The page fetches its CSRF token itself in a fresh tab, so first POSTs are no longer refused (403)",
+            "A lost session shows the passcode screen instead of a silent player",
+            "Script-load retries are capped across all files, with a Reset link on the recovery screen",
+            "Quality badge reads what the server really sent (X-Reclmr-Served)",
+            "Queue panel: 60 rows with Show more, follows resizes, and floats over the page on narrow windows",
+            "Spotify Modern skin uses colour tokens",
+            "App usage log is capped, validated and written atomically",
+            "bump_version.py moves the cache-bust numbers",
+            "scripts/e2e_smoke.py browser smoke test",
+        ]
+    },
     {
         "version": "0.7.26",
         "date": "2026-11-03",

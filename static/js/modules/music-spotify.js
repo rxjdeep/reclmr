@@ -748,6 +748,7 @@ var mzSp = (function () {
       case 'sp-artistmenu': { var arm = mz.artists.get(v); if (arm) SP.artistMenu(arm); break; }
       case 'sp-qual': { var qt = mzCur(); if (qt) SP.qualMenu(qt); break; }
       case 'sp-qp-close': SP.qpToggle(); break;
+      case 'sp-qp-more': SP.qpMore(); break;
       case 'sp-plmenu': { var plm = mz.playlists.filter(function (x) { return x.id === v; })[0]; if (plm) SP.playlistMenu(plm); break; }
       case 'sp-albummenu': { var alm = mz.albums.get(v); if (alm) SP.albumMenu(alm); break; }
       case 'sp-playpage': mzPlayList(mz.ctx, 0); break;
@@ -898,7 +899,7 @@ var mzSp = (function () {
   };
   SP.npQueue = function () { navSet('music/queue'); SP.qSet(true, true); };
   // ─── desktop queue panel: a column beside the page that the queue button shows and hides (it stays open while you browse) ───
-  var qpSig = '', qpCur = '';
+  var qpSig = '', qpCur = '', qpMax = 60;                            // the panel lists 60 up-next songs, "Show more" adds 60 (a queue can hold thousands)
   function qpOpen() { return mz.theme === 'spotify' && !!mz.prefs.qp && !(typeof mzIsMobile === 'function' && mzIsMobile()); }
   function qpRow(t, i) {
     var on = i === mz.qi;
@@ -910,18 +911,22 @@ var mzSp = (function () {
     var on = qpOpen(); w.classList.toggle('qp-open', on);
     var b = mzEl('wm-npbtn'); if (b) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
     var list = mzEl('sp-qp-list'); if (!on || !list) return;
-    var sig = qSignature() + ':' + mz.queue.length;
+    var next = mz.queue.slice(mz.qi + 1, mz.qi + 1 + qpMax);
+    var sig = mz.qi + ':' + mz.queue.length + ':' + qpMax + ':' + (mz.queue[mz.qi] ? mz.queue[mz.qi].f : '') + ':' + next.map(function (t) { return t.f; }).join(',');   // a reorder further down the list counts too
     if (sig === qpSig) return;
     qpSig = sig;
     var cur = mzCur();
     if (!cur) { list.innerHTML = '<div class="sp-qp-empty">Nothing in the queue</div>'; return; }
-    var next = mz.queue.slice(mz.qi + 1, mz.qi + 201), keep = qpCur === cur.f ? list.scrollTop : 0;   // a new song starts the list from the top again
+    var left = mz.queue.length - (mz.qi + 1) - next.length, keep = qpCur === cur.f ? list.scrollTop : 0;   // a new song starts the list from the top again
     qpCur = cur.f;
     list.innerHTML = '<h3>Now playing</h3>' + qpRow(cur, mz.qi) +
-      (next.length ? '<h3>Next in queue</h3>' + next.map(function (t, n) { return qpRow(t, mz.qi + 1 + n); }).join('') : '<div class="sp-qp-empty">Nothing up next</div>');
+      (next.length ? '<h3>Next in queue</h3>' + next.map(function (t, n) { return qpRow(t, mz.qi + 1 + n); }).join('') : '<div class="sp-qp-empty">Nothing up next</div>') +
+      (left > 0 ? '<button class="sp-qp-more" data-act="sp-qp-more">Show ' + Math.min(left, 60) + ' more (' + left + ' left)</button>' : '');
     list.scrollTop = keep;
   };
-  SP.qpToggle = function () { mz.prefs.qp = !mz.prefs.qp; mzSavePrefs(); qpSig = ''; SP.qpSync(); };
+  window.addEventListener('resize', function () { if (typeof SP !== 'undefined' && SP.qpSync) SP.qpSync(); });   // the panel appears/disappears at the 760px breakpoint
+  SP.qpToggle = function () { mz.prefs.qp = !mz.prefs.qp; qpMax = 60; mzSavePrefs(); qpSig = ''; SP.qpSync(); };
+  SP.qpMore = function () { qpMax += 60; SP.qpSync(); };
   SP.npBtn = function () {                                         // the queue button: the panel on a desktop, the page elsewhere
     if (mz.theme === 'spotify' && !(typeof mzIsMobile === 'function' && mzIsMobile())) SP.qpToggle(); else mzGo('now');
   };
@@ -1082,6 +1087,8 @@ var mzSp = (function () {
     var fmt = String(t && t.sx || '').toLowerCase();
     if (!fmt) return '';
     var rate = typeof mzQualityRate === 'function' ? mzQualityRate() : 0, parts = [];
+    var sv = mz.served && mz.served.f === t.f ? mz.served.h : '', m = /^mp3-(\d+)$/.exec(sv);   // the server's own word on what it sent
+    if (sv === 'original') rate = 0; else if (m) rate = +m[1];
     if (rate) return '<span class="sp-q-fmt">MP3</span><span class="sp-q-txt">' + rate + ' kbps \u2022 from ' + esc(fmt.toUpperCase()) + '</span>';
     if (LOSSLESS[fmt]) parts.push('Lossless');
     if (t.br) parts.push(t.br + ' kbps');

@@ -36,6 +36,11 @@ function mzDefaultType() { return mz.theme === 'spotify' ? 'home' : 'albums'; }
 (function () { var w = document.querySelector('#music-screen .wm'); if (w) w.dataset.mzt = mz.theme; })();
 mz.view = { type: mzDefaultType(), key: '' };
 function mzSavePrefs() { try { localStorage.setItem('mzPrefs2', JSON.stringify(mz.prefs)); } catch (_) {} }
+// Another tab changed a setting: take it, so this tab's next save does not write the old value back over it
+window.addEventListener('storage', function (e) {
+  if (e.key !== 'mzPrefs2' || !e.newValue) return;
+  try { Object.assign(mz.prefs, JSON.parse(e.newValue)); if (typeof mzSp !== 'undefined' && mzSp && mzSp.qpSync) mzSp.qpSync(); } catch (_) {}
+});
 
 // ─── helpers ─────────────────────────────────────────────
 function mzEl(id) { return document.getElementById(id); }
@@ -1253,8 +1258,22 @@ function mzBindAudio() {
     if (typeof updateMediaSessionPosition === 'function') updateMediaSessionPosition();
   };
   musicAudio.onseeked = function () { mzSaveState(true); };
+  // What the server really sent (it names a converted copy in a header; the audio element cannot read headers, so ask for one byte)
+  musicAudio.addEventListener('loadedmetadata', function () {
+    var t = mzCur(), src = musicAudio.currentSrc || '';
+    if (!t || src.indexOf('/api/music/stream/') < 0) return;
+    fetch(src, { headers: { Range: 'bytes=0-0' } }).then(function (r) {
+      var h = r.headers.get('X-Reclmr-Served') || '';
+      if (mz.served && mz.served.f === t.f && mz.served.h === h) return;
+      mz.served = { f: t.f, h: h };
+      if (typeof mzSp !== 'undefined' && mzSp && mzSp.npQualRefresh) mzSp.npQualRefresh();
+    }).catch(function () {});
+  });
   musicAudio.onerror = function () {
-    var t = mzCur(); if (!t || mz.fb || !musicAudio.src) return;
+    var t = mzCur(); if (!t || !musicAudio.src) return;
+    // A signed-out session also ends here (the stream answers 401): say so, instead of trying a converted copy that cannot load either
+    fetch('/api/auth/check').then(function (r) { if (r.status === 401 && typeof reclmrAuthLost === 'function') reclmrAuthLost(); }).catch(function () {});
+    if (mz.fb) return;
     mz.fb = true; mz.resumeAt = musicAudio.currentTime || 0;   // browser cannot decode the original (e.g. some WAVs): play a transcode
     musicAudio.src = '/api/music/stream/' + mzEnc(t.f) + '?fb=1';
     mzTryPlay(null);

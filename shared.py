@@ -105,7 +105,8 @@ app.secret_key = SECRET_KEY
 # survive an app restart (still single-process - see note in save_sessions).
 SESSIONS_FILE = Path(os.environ.get('RECLMR_SESSIONS_FILE') or Path(__file__).parent / 'sessions.json')   # tests point this at a temp dir
 SESSION_TTL_SECONDS = 30 * 24 * 60 * 60  # 30 days
-MAX_SESSIONS = 500  # was 50: a full table evicted the oldest (real) session on every new login
+MAX_SESSIONS = 500
+SESSION_SEEN = {}   # token -> last time it was used (memory only); a full table drops the least recently USED session, never an active one
 _session_lock = threading.Lock()
 
 
@@ -155,6 +156,20 @@ def _purge_expired_sessions():
     now = time.time()
     for t in [t for t, exp in SESSIONS.items() if exp <= now]:
         SESSIONS.pop(t, None)
+        SESSION_SEEN.pop(t, None)
+
+def _touch_session(token):
+    SESSION_SEEN[token] = time.time()
+
+def evict_one_session():
+    """Make room for a new login: drop the session that was used longest ago (a never-seen one counts from when it was made)."""
+    if not SESSIONS:
+        return
+    def last_used(t):
+        return SESSION_SEEN.get(t) or (SESSIONS[t] - SESSION_TTL_SECONDS)
+    old = min(SESSIONS, key=last_used)
+    SESSIONS.pop(old, None)
+    SESSION_SEEN.pop(old, None)
 
 def _csrf_for_token(token: str) -> str:
     """CSRF token derived from a session token and the app secret."""
@@ -181,7 +196,10 @@ def _is_authenticated():
     if not token:
         return False
     _purge_expired_sessions()
-    return token in SESSIONS
+    if token in SESSIONS:
+        _touch_session(token)
+        return True
+    return False
 
 def _authed_by_bearer() -> bool:
     """True when auth came from an Authorization header (CSRF-safe)."""

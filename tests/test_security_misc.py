@@ -121,3 +121,31 @@ class TestBookCounts:
         book = [b for b in r.get_json() if b['id'] == 'Twelve'][0]
         assert book['total_chapters'] == 12
         assert book['chapters_done'] == 0
+
+
+class TestTelemetryUsage:
+    @pytest.fixture(autouse=True)
+    def _own_usage_file(self, tmp_path, monkeypatch):      # never write the real usage log from a test
+        import routes.telemetry as t
+        monkeypatch.setattr(t, 'USAGE_FILE', tmp_path / 'usage.json')
+
+    def _post(self, client, login, body):
+        h = {'Authorization': 'Bearer ' + login['session']}
+        return client.post('/api/telemetry/app-usage', json=body, headers=h)
+
+    def test_junk_is_clamped_not_stored(self, client, login):
+        r = self._post(client, login, {'app_id': 'x' * 500, 'action': '<script>', 'duration': 'NaN?'})
+        e = r.get_json()['entry']
+        assert r.status_code == 200
+        assert len(e['app_id']) == 64 and e['action'] == 'open' and e['duration'] == 0
+
+    def test_huge_duration_is_capped(self, client, login):
+        e = self._post(client, login, {'app_id': 'a', 'action': 'close', 'duration': 10 ** 12}).get_json()['entry']
+        assert e['duration'] == 86400
+
+    def test_log_does_not_grow_forever(self, client, login, monkeypatch):
+        import json, routes.telemetry as t
+        monkeypatch.setattr(t, 'USAGE_MAX', 5)
+        for i in range(9):
+            self._post(client, login, {'app_id': 'a%d' % i, 'action': 'open'})
+        assert len(json.loads(t.USAGE_FILE.read_text())) == 5

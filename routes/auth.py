@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request, make_response
 from shared import (
     app, RECLMR_PIN, limiter, SESSIONS, SESSION_TTL_SECONDS, MAX_SESSIONS,
     _LOGIN_ATTEMPTS, _LOGIN_BACKOFF_WINDOW, _LOGIN_BACKOFF_MAX,
-    _csrf_for_token, _purge_expired_sessions, save_sessions,
+    _csrf_for_token, _purge_expired_sessions, save_sessions, evict_one_session, _touch_session,
 )
 import hmac
 import secrets
@@ -55,11 +55,10 @@ def login():
     token = secrets.token_urlsafe(32)
     _purge_expired_sessions()
     # Bound the session table so an attacker cannot fill memory with tokens
-    if len(SESSIONS) >= MAX_SESSIONS:
-        oldest = sorted(SESSIONS.items(), key=lambda kv: kv[1])[:1]
-        for old_token, _ in oldest:
-            SESSIONS.pop(old_token, None)
+    while len(SESSIONS) >= MAX_SESSIONS:
+        evict_one_session()
     SESSIONS[token] = time.time() + SESSION_TTL_SECONDS
+    _touch_session(token)
     save_sessions()
 
     resp = make_response(jsonify({

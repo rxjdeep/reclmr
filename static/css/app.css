@@ -7081,6 +7081,13 @@ body.desktop-mode .home-title .ht-prompt { font-size: 17px; }
 .sp-qp-row.playing .tt b { color: var(--sp-green, #1ed760); }
 .sp-qp-row time { font-size: 12px; color: #a7a7a7; font-variant-numeric: tabular-nums; }
 .sp-qp-empty { padding: 20px 8px; color: #a7a7a7; font-size: 13px; }
+.sp-qp-more { display: block; margin: 8px auto 16px; padding: 8px 16px; border: 1px solid #535353; border-radius: 16px; background: none; color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+.sp-qp-more:hover { border-color: #fff; }
+/* a narrow desktop window has no room for a third column: the queue floats over the right of the page instead of squeezing it */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .wm[data-mzt="spotify"].qp-open { grid-template-columns: var(--wm-side-w, 320px) minmax(0, 1fr); }
+  .wm[data-mzt="spotify"].qp-open .sp-qp { grid-column: 2; justify-self: end; width: min(340px, 100%); z-index: 6; box-shadow: -8px 0 32px rgba(0,0,0,.55); }
+}
 @media (max-width: 760px) { .sp-qp { display: none !important; } .wm[data-mzt="spotify"].qp-open { grid-template-columns: var(--wm-side-w, 320px) minmax(0, 1fr); } }
 
 .wm-right .wm-qual { margin: 0; padding: 0; flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; font-size: 10.5px; }
@@ -7090,50 +7097,52 @@ body.desktop-mode .home-title .ht-prompt { font-size: 17px; }
 /* ═══ MUSIC - Spotify "Modern" skin (desktop): rounded floating panels, a dark search pill, a floating player card, a white play button ═══
    It only undoes the classic desktop block above and rounds things off; the layout and behaviour are the same Spotify theme. */
 @media (min-width: 761px) {
-  .wm[data-mzt="spotify"][data-skin="modern"] { --sp-green: #1ed760; --sp-green-hi: #3be477; --wm-glow: 30, 215, 96; --sp-panel: #121212; padding: var(--safe-top) 8px 0; column-gap: 8px; background: #000; }
+  .wm[data-mzt="spotify"][data-skin="modern"] { --sp-green: var(--mo-accent); --sp-green-hi: #3be477; --wm-glow: 30, 215, 96; --sp-panel: var(--mo-panel); --mo-bg: #000; --mo-panel: #121212; --mo-card: #141414; --mo-raise: #1f1f1f; --mo-raise2: #2a2a2a; --mo-raise3: #3a3a3a; --mo-muted: #b3b3b3; --mo-accent: #1ed760; padding: var(--safe-top) 8px 0; column-gap: 8px; background: var(--mo-bg); }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-side { grid-row: 2; gap: 8px; background: none; }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-split { grid-row: 2; margin-right: -3px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-top { grid-column: 1 / -1; padding: 8px 0; background: transparent; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .wm-view { border-radius: 14px; background: #121212; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-panel { background: #121212; border-radius: 14px; }
+  .wm[data-mzt="spotify"][data-skin="modern"] .wm-view { border-radius: 14px; background: var(--mo-panel); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-panel { background: var(--mo-panel); border-radius: 14px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-qp { border-radius: 14px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-homebtn, .wm[data-mzt="spotify"][data-skin="modern"] .sp-avatar { width: 48px; height: 48px; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-avatar { font-size: 14px; background: radial-gradient(circle, #f573a0 0 16px, #1f1f1f 17px); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-avatar { font-size: 14px; background: radial-gradient(circle, #f573a0 0 16px, var(--mo-raise) 17px); }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-search { width: min(480px, 36vw); }
-  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search svg { left: 16px; width: 20px; height: 20px; color: #b3b3b3; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search input { height: 48px; padding: 0 16px 0 48px; font-size: 16px; color: #fff; background: #1f1f1f; border: 1px solid transparent; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search input::placeholder { color: #b3b3b3; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search input:hover { background: #2a2a2a; border-color: #3a3a3a; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search input:focus { background: #2a2a2a; border-color: #fff; }
+  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search svg { left: 16px; width: 20px; height: 20px; color: var(--mo-muted); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search input { height: 48px; padding: 0 16px 0 48px; font-size: 16px; color: #fff; background: var(--mo-raise); border: 1px solid transparent; }
+  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search input::placeholder { color: var(--mo-muted); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search input:hover { background: var(--mo-raise2); border-color: var(--mo-raise3); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .wm-search input:focus { background: var(--mo-raise2); border-color: #fff; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-nav { padding: 8px 12px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-navitem { gap: 20px; font-size: 16px; border-radius: 8px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-navitem.on { background: none; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-lib-head { padding: 12px 16px 4px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-libtitle { gap: 12px; font-size: 16px; letter-spacing: 0; text-transform: none; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-chips { padding: 8px 16px; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip { height: 32px; padding: 0 12px; border-radius: 16px; font-size: 14px; background: #2a2a2a; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip:hover { background: #3a3a3a; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip.on, .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip.pr, .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip.on:hover { background: #fff; color: #121212; }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip { height: 32px; padding: 0 12px; border-radius: 16px; font-size: 14px; background: var(--mo-raise2); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip:hover { background: var(--mo-raise3); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip.on, .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip.pr, .wm[data-mzt="spotify"][data-skin="modern"] .sp-chip.on:hover { background: #fff; color: var(--mo-panel); }
   .wm[data-mzt="spotify"][data-skin="modern"]:not(.side-collapsed) .sp-li { gap: 12px; padding: 8px; border-radius: 8px; }
   .wm[data-mzt="spotify"][data-skin="modern"]:not(.side-collapsed) .sp-li .wm-art { width: 48px; height: 48px; border-radius: 6px; }
   .wm[data-mzt="spotify"][data-skin="modern"]:not(.side-collapsed) .sp-li .wm-art.round { border-radius: 50%; }
   .wm[data-mzt="spotify"][data-skin="modern"]:not(.side-collapsed) .sp-lit small { display: block; }
   .wm[data-mzt="spotify"][data-skin="modern"]:not(.side-collapsed) .sp-lit b { font-size: 16px; color: #fff; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-li:hover { background: #1f1f1f; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-li.on { background: #2a2a2a; }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-li:hover { background: var(--mo-raise); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-li.on { background: var(--mo-raise2); }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-cp { border-radius: 10px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-cards { margin: 0 -12px; column-gap: 0; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-cardx { padding: 12px; border-radius: 12px; background: transparent; transition: background .25s; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-cardx:hover { background: #1f1f1f; }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-cardx:hover { background: var(--mo-raise); }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-cover .wm-art { border-radius: 10px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-cover .wm-art.round { border-radius: 50%; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-quick { border-radius: 8px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .sp-tile { border-radius: 14px; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .sp-page { background: linear-gradient(var(--tint, #333) 0, #121212 420px) #121212; }
-  .wm[data-mzt="spotify"][data-skin="modern"] .wm-transport { background: #141414; border: 0; border-radius: 16px; margin: 8px 0 8px; padding: 0 16px; box-shadow: 0 8px 32px rgba(0,0,0,.5); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .sp-page { background: linear-gradient(var(--tint, #333) 0, var(--mo-panel) 420px) var(--mo-panel); }
+  .wm[data-mzt="spotify"][data-skin="modern"] .wm-transport { background: var(--mo-card); border: 0; border-radius: 16px; margin: 8px 0 8px; padding: 0 16px; box-shadow: 0 8px 32px rgba(0,0,0,.5); }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-split.bar { top: -6px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-now-art { border-radius: 8px; }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-play, .wm[data-mzt="spotify"][data-skin="modern"] .wm-play:hover { background: #fff; color: #000; border: 0; }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-play:hover { transform: scale(1.06); }
   .wm[data-mzt="spotify"][data-skin="modern"] .wm-menu { border-radius: 10px; }
+  /* keyboard focus must stay visible on the pill controls */
+  .wm[data-mzt="spotify"][data-skin="modern"] :is(.sp-navitem, .sp-li, .sp-chip, .sp-cardx, .wm-play):focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 }

@@ -8,38 +8,71 @@
 // cross-origin (tunnel) scenarios. The PIN itself never lives in
 // browser storage.
 const _originalFetch = window.fetch;
-window.fetch = function(input, init) {
+function _ssGet(k) { try { return sessionStorage.getItem(k); } catch (_) { return null; } }
+function _ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (_) {} }
+function _ssDel(k) { try { sessionStorage.removeItem(k); } catch (_) {} }
+
+// The CSRF token lives in sessionStorage, so a new tab or a restarted browser starts without one while the cookie still logs you in.
+// A POST sent in that gap used to be refused with 403 (telemetry, music prewarm, ...). Fetch the token first, once, then send.
+var _csrfWait = null;
+function _csrfEnsure() {
+  if (_ssGet('reclmr_csrf')) return Promise.resolve();
+  if (!_csrfWait) {
+    _csrfWait = _originalFetch('/api/auth/check', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : {}; })
+      .then(function (d) { if (d && d.csrf) _ssSet('reclmr_csrf', d.csrf); })
+      .catch(function () {})
+      .then(function () { _csrfWait = null; });
+  }
+  return _csrfWait;
+}
+
+// A session that is gone (signed out elsewhere, expired, evicted) used to leave the app limping: every call 401, the player silent.
+// Say so once, with the passcode screen, instead.
+var _authLostShown = false;
+function reclmrAuthLost() {
+  if (_authLostShown) return;
+  _authLostShown = true;
+  _ssDel('reclmr_session'); _ssDel('reclmr_csrf');
+  if (typeof showLoginScreen === 'function') showLoginScreen();
+  setTimeout(function () { _authLostShown = false; }, 5000);
+}
+
+function _isAuthPath(u) { return /^\/api\/auth\/(login|check|logout)/.test(u); }
+
+window.fetch = function (input, init) {
   init = init || {};
-  // Don't modify if already has Authorization header
-  if (!init.headers || (init.headers instanceof Headers && !init.headers.has('Authorization'))) {
-    // Add auth header from sessionStorage if we have a session token
-    const token = sessionStorage.getItem('reclmr_session');
-    if (token) {
+  var url = typeof input === 'string' ? input : (input && input.url) || '';
+  try { url = new URL(url, location.href); url = url.origin === location.origin ? url.pathname : ''; } catch (_) { url = ''; }
+  var method = (init.method || 'GET').toUpperCase();
+  var self = this;
+  function send() {
+    var token = _ssGet('reclmr_session');
+    // Don't modify if already has Authorization header
+    if (token && (!init.headers || (init.headers instanceof Headers && !init.headers.has('Authorization')))) {
       init.headers = init.headers || {};
-      if (init.headers instanceof Headers) {
-        init.headers.set('Authorization', 'Bearer ' + token);
-      } else {
-        init.headers['Authorization'] = 'Bearer ' + token;
+      if (init.headers instanceof Headers) init.headers.set('Authorization', 'Bearer ' + token);
+      else init.headers['Authorization'] = 'Bearer ' + token;
+    }
+    // CSRF token on state-changing requests (server requires it when the request is authenticated only by cookie)
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      var csrf = _ssGet('reclmr_csrf');
+      if (csrf) {
+        init.headers = init.headers || {};
+        if (init.headers instanceof Headers) init.headers.set('X-CSRF-Token', csrf);
+        else init.headers['X-CSRF-Token'] = csrf;
       }
     }
+    init.credentials = 'same-origin';
+    return _originalFetch.call(self, input, init).then(function (r) {
+      if (r.status === 401 && url.indexOf('/api/') === 0 && !_isAuthPath(url) && url.indexOf('/api/backup/') !== 0) reclmrAuthLost();
+      return r;
+    });
   }
-  // CSRF token on state-changing requests (server requires it when the
-  // request is authenticated only by cookie)
-  const method = (init.method || 'GET').toUpperCase();
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    const csrf = sessionStorage.getItem('reclmr_csrf');
-    if (csrf) {
-      init.headers = init.headers || {};
-      if (init.headers instanceof Headers) {
-        init.headers.set('X-CSRF-Token', csrf);
-      } else {
-        init.headers['X-CSRF-Token'] = csrf;
-      }
-    }
+  if (url.indexOf('/api/') === 0 && !_isAuthPath(url) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && !_ssGet('reclmr_csrf')) {
+    return _csrfEnsure().then(send);
   }
-  // Always include credentials (cookies)
-  init.credentials = 'same-origin';
-  return _originalFetch.call(this, input, init);
+  return send();
 };
 
 // ─── Shared helpers (single source of truth) ──────────────────────
@@ -104,16 +137,23 @@ window.addEventListener('error', function(e) {
   if (!t || t.tagName !== 'SCRIPT' || !t.src) return;
   setTimeout(function() {                          // scripts cancelled by a normal navigation or refresh are not failures
     if (reclmrLeaving) return;
-    // One retry per file per minute. (The saved mark used to be wiped by the page's load event, which fires before this timer, so a
-    // flaky connection reloaded the page again and again and left only the logo showing.) After that, say so instead of looping.
+    // At most two automatic reloads per minute for ALL files together, and one per file. (An earlier guard remembered one file only, so two
+    // flaky scripts took turns and reloaded forever.) After that, say so instead of looping. If storage is unusable we cannot count: don't reload.
+    var now = Date.now(), log;
     try {
-      var last = JSON.parse(sessionStorage.getItem('reclmr_script_retry') || 'null');
-      if (last && last.src === t.src && Date.now() - last.at < 60000) {
+      log = JSON.parse(sessionStorage.getItem('reclmr_script_retry') || '[]');
+      if (!Array.isArray(log)) log = [];
+      log = log.filter(function (e) { return e && now - e.at < 60000; });
+      if (log.length >= 2 || log.some(function (e) { return e.src === t.src; })) {
         showCrashRecovery(new Error('Could not load ' + t.src + ' (network problem?)'));
         return;
       }
-      sessionStorage.setItem('reclmr_script_retry', JSON.stringify({ src: t.src, at: Date.now() }));
-    } catch (_) { return; }
+      log.push({ src: t.src, at: now });
+      sessionStorage.setItem('reclmr_script_retry', JSON.stringify(log));
+    } catch (_) {
+      showCrashRecovery(new Error('Could not load ' + t.src + ' (network problem?)'));
+      return;
+    }
     console.warn('Script failed to load, retrying page:', t.src);
     location.reload();
   }, 400);
@@ -147,8 +187,9 @@ function showCrashRecovery(err) {
     '<p style="margin:0 0 20px;opacity:0.7;font-size:14px;max-width:320px">Something went wrong loading the dashboard. A Force Refresh will clear the cache and reload.</p>' +
     '<button onclick="forceRefresh()" style="background:#6366f1;color:white;border:none;padding:14px 28px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;margin-bottom:12px">Force Refresh</button>' +
     '<details style="margin-top:16px;opacity:0.5;font-size:12px;max-width:400px;word-break:break-word"><summary>Error details</summary><pre style="text-align:left;white-space:pre-wrap;padding:8px">' +
-    (err && err.stack ? err.stack : (err && err.message ? err.message : String(err))) +
-    '</pre></details>';
+    escapeHtml(err && err.stack ? err.stack : (err && err.message ? err.message : String(err))) +
+    '</pre></details>' +
+    '<a href="/kill-cache" style="margin-top:18px;color:#a5b4fc;font-size:13px">Still stuck? Reset this site (clears the cache and service worker)</a>';
   document.body.appendChild(overlay);
 }
 

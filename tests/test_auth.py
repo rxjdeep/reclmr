@@ -79,6 +79,21 @@ class TestGating:
             client.post('/api/auth/login', json={'pin': TEST_PASSCODE})
         assert len(SESSIONS) <= MAX_SESSIONS
 
+    def test_full_table_drops_the_least_recently_used_session(self, client, monkeypatch):
+        import routes.auth as ra
+        from shared import SESSIONS, SESSION_SEEN, SESSION_TTL_SECONDS
+        monkeypatch.setattr(ra, 'MAX_SESSIONS', 3)
+        SESSIONS.clear(); SESSION_SEEN.clear()
+        now = time.time()
+        for name, made, used in (('old_but_active', now - 500, now - 1), ('idle', now - 400, now - 300), ('newer', now - 100, 0)):
+            SESSIONS[name] = made + SESSION_TTL_SECONDS
+            if used:
+                SESSION_SEEN[name] = used
+        client.post('/api/auth/login', json={'pin': TEST_PASSCODE})
+        assert 'old_but_active' in SESSIONS   # created first, but in use: must survive
+        assert 'idle' not in SESSIONS         # the one nobody has touched for longest goes
+        assert len(SESSIONS) == 3
+
 
 class TestCsrf:
     def test_cookie_post_without_csrf_rejected(self, client, login):

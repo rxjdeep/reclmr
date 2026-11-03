@@ -27,6 +27,11 @@ bash -n reclmr install.sh
 uvx pip-audit -r requirements.txt           # if deps changed
 ```
 
+**Never test in a browser against the live instance.** Every login adds a session to the live table (a full table once logged the owner out
+mid-song). Start a throwaway copy on its own port with its own session file and point the smoke test at it:
+`RECLMR_PORT=8991 RECLMR_SESSIONS_FILE=/tmp/x.json .venv/bin/python app.py`, then
+`RECLMR_E2E_URL=http://127.0.0.1:8991 RECLMR_PIN=... python scripts/e2e_smoke.py` (needs Playwright; not part of pytest).
+
 Boot check: `curl -s http://localhost:8899/ -o /dev/null -w "%{http_code}\n"` → 200.
 
 ## Map

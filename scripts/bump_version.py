@@ -7,6 +7,7 @@ Usage:
 Keeps in sync:
   1. routes/version.py , VERSION + CHANGELOG[0]
   2. reclmr           , VERSION="x.y.z"
+  3. templates/index.html (?v=N) and static/sw.js (CACHE_NAME) , one new cache-bust number
 Adds a changelog entry dated today. `-c` is a semicolon-separated list of
 bullets; `-m` is always the first bullet.
 """
@@ -83,6 +84,17 @@ def main():
     dtext = RECLMR_FILE.read_text()
     dtext = re.sub(r'^VERSION="[^"]+"', f'VERSION="{new}"', dtext, count=1, flags=re.MULTILINE)
     RECLMR_FILE.write_text(dtext)
+
+    # 3. browser cache-busters: the ?v=N on every script/stylesheet in the page and the service worker's cache name move together, so a
+    #    release can never be served half old / half new (this used to be three hand-run sed edits, and forgetting one ships stale code)
+    page, sw = ROOT / 'templates' / 'index.html', ROOT / 'static' / 'sw.js'
+    ptext, stext = page.read_text(), sw.read_text()
+    nums = [int(n) for n in re.findall(r'\?v=(\d+)', ptext)]
+    if nums:
+        n = max(nums) + 1
+        page.write_text(re.sub(r'\?v=\d+', f'?v={n}', ptext))
+        sw.write_text(re.sub(r"CACHE_NAME = 'reclmr-v\d+'", f"CACHE_NAME = 'reclmr-v{n}'", stext, count=1))
+        print(f'Cache-bust counter -> {n}')
 
     print(f'Bumped {current} -> {new} ({args.bump})')
     print(f'Changelog entry dated {today} with {len(changes)} bullet(s):')

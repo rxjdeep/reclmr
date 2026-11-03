@@ -892,7 +892,9 @@ def music_stream(ident):
         if rate in TRANSCODE_RATES:                        # a lower quality was asked for: a cached MP3, so seeking still works
             f = _transcoded(ident, rate)
             if f is not None:
-                return _send_cached(f, 'audio/mpeg')
+                resp = _send_cached(f, 'audio/mpeg')
+                resp.headers['X-Reclmr-Served'] = f'mp3-{rate}'     # lets the player's quality badge say what it really got
+                return resp
         fs = _faststart(ident)                             # a song that is slow to start (see above): the quick-starting copy
         if fs is not None:
             return _send_cached(fs, 'audio/ogg' if fs.suffix == '.ogg' else 'audio/mp4')
@@ -900,6 +902,14 @@ def music_stream(ident):
         ctype = 'audio/wav' if request.args.get('x') == 'wav' else None
         return _nd_proxy('stream', {'id': ident, 'format': 'raw'}, ctype=ctype, cache='private, max-age=3600')      # cacheable, so the first bytes fetched ahead of a skip are still there when the song starts
     return _file_stream(ident)
+
+
+@bp.after_request
+def _served_header(resp):
+    """A converted copy says so (see music_stream); everything else the player gets is the file itself."""
+    if request.endpoint == 'music.music_stream' and 'X-Reclmr-Served' not in resp.headers:
+        resp.headers['X-Reclmr-Served'] = 'mp3-320' if request.args.get('fb') else 'original'
+    return resp
 
 
 _artist_cache = {}
