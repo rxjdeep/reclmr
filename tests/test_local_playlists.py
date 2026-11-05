@@ -101,3 +101,35 @@ class TestLocalPlaylists:
         for pid in ('..%2F..%2Fetc%2Fpasswd', 'A_B', 'UPPER'):
             assert client.get('/api/music/playlist/' + pid, headers=auth_headers).status_code in (404, 400)
             assert _post(client, auth_headers, '/api/music/playlist/%s/delete' % pid, {}).status_code in (404, 400)
+
+
+class TestFileModeExtras:
+    def test_lrc_beside_a_song_gives_synced_lyrics(self, client, auth_headers, lib):
+        song = lib['dir'] / 'Artist' / 'Artist - One.lrc'
+        song.write_text('[ar:Artist]\n[ti:One]\n[00:01.50]first line\n[01:02.5][01:30.00]chorus\n', encoding='utf-8')
+        d = client.get('/api/music/lyrics/Artist/Artist - One.mp3', headers=auth_headers).get_json()
+        assert d['synced'] is True
+        assert d['lines'][:2] == [[1500, 'first line'], [62500, 'chorus']] and d['lines'][2] == [90000, 'chorus']
+
+    def test_opus_files_are_part_of_the_library(self, client, auth_headers, lib):
+        (lib['dir'] / 'Artist' / 'Artist - Four.opus').write_bytes(b'x')
+        import routes.music as music
+        music._invalidate()
+        d = client.get('/api/music/library', headers=auth_headers).get_json()
+        assert any(t['f'].endswith('Four.opus') for t in d['tracks'])
+
+    def test_quality_asks_for_a_converted_copy_and_says_what_it_sent(self, client, auth_headers, lib, monkeypatch):
+        import routes.music as music
+        made = lib['dir'] / 'made.mp3'
+        made.write_bytes(b'ID3' + b'0' * 2000)
+        monkeypatch.setattr(music, '_transcoded', lambda ident, rate: made if rate == 128 else None)
+        r = client.get('/api/music/stream/Artist/Artist - One.mp3?q=128', headers=auth_headers)
+        assert r.status_code == 200 and r.headers['X-Reclmr-Served'] == 'mp3-128'
+        r = client.get('/api/music/stream/Artist/Artist - One.mp3?q=64', headers=auth_headers)          # could not be made: the file itself, honestly labelled
+        assert r.headers['X-Reclmr-Served'] == 'original'
+
+    def test_prewarm_is_accepted_without_navidrome(self, client, auth_headers, lib, monkeypatch):
+        import routes.music as music
+        monkeypatch.setattr(music, '_transcoded', lambda ident, rate: None)
+        r = client.post('/api/music/prewarm', json={'id': 'Artist/Artist - One.mp3', 'q': 128}, headers=auth_headers)
+        assert r.status_code == 202

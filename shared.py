@@ -1028,4 +1028,4 @@ try:
     MUSIC_DIR.mkdir(parents=True, exist_ok=True)
 except OSError:
     pass  # read-only filesystem. Music browsing will simply be empty
-MUSIC_EXTS = {'.mp3', '.wav', '.flac', '.ogg', '.m4a', '.aac'}
+MUSIC_EXTS = {'.mp3', '.wav', '.flac', '.ogg', '.opus', '.m4a', '.aac'}

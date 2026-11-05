@@ -8,9 +8,22 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 
 CHANGELOG = [
+    {
+        "version": "0.8.1",
+        "date": "2026-11-05",
+        "changes": [
+            "Quality setting, quick-start copies, lyrics files and Opus work without Navidrome",
+            "Lower-quality MP3 copies are made with ffmpeg straight from the file, kept, and seekable",
+            "Slow-to-start m4a/opus files get a quick-starting copy from the file itself",
+            "A .lrc file next to a song gives synced lyrics",
+            "Opus files are part of the library",
+            "Lyrics worked only for songs in the top folder",
+            "now every song",
+        ]
+    },
     {
         "version": "0.8.0",
         "date": "2026-11-05",

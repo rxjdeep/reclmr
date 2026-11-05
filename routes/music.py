@@ -80,6 +80,7 @@ def _file_stream(filename):
     mime_types = {
         '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.flac': 'audio/flac',
         '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.aac': 'audio/aac',
+        '.opus': 'audio/ogg', '.oga': 'audio/ogg', '.m4b': 'audio/mp4', '.mp4': 'audio/mp4',
     }
     mime = mime_types.get(filepath.suffix.lower(), 'application/octet-stream')
 
@@ -810,8 +811,17 @@ def _cached(f, make):
 def _transcoded(ident, rate):
     """Path of the MP3 of this song at `rate` kbps (made now if it does not exist yet), or None if it could not be made."""
     conf = _nd_conf()
-    if not conf:
-        return None
+    if not conf:                                            # no Navidrome: convert the file with ffmpeg
+        src = _safe_music_path(ident)
+        if not src or not src.is_file() or not shutil.which('ffmpeg'):
+            return None
+
+        def make_local(tmp):
+            cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(src), '-map', '0:a:0', '-vn', '-map_metadata', '-1',
+                   '-c:a', 'libmp3lame', '-b:a', f'{rate}k', '-f', 'mp3', str(tmp)]
+            return subprocess.run(cmd, capture_output=True, timeout=600).returncode == 0
+        # a path can hold characters the file name cannot, so two songs must not share a name: add a short hash of the path
+        return _cached(_TC_DIR / f'{_tc_name(ident)[:80]}-{hashlib.md5(ident.encode()).hexdigest()[:8]}-{rate}.mp3', make_local)
 
     def make(tmp):
         up = _upstream(conf, ident, rate)
@@ -869,38 +879,52 @@ def _size_of(headers):
 def _faststart(ident):
     """Path of a quick-starting copy of this song (see above), made now if needed. None when the song starts fine as it is or the copy could not be made."""
     conf = _nd_conf()
-    if not conf or _fs_known.get(ident):
+    if _fs_known.get(ident):
         return None
-    sx = next((x['sx'] for x in _library_data().get('tracks', []) if x['f'] == ident), '')
-    if sx not in _MP4_EXTS and sx not in _OGG_EXTS:
+    local = None if conf else _safe_music_path(ident)      # no Navidrome: look at and copy the file itself
+    if not conf and not (local and local.is_file()):
+        return None
+    sx = (local.suffix.lstrip('.').lower() if local else next((x['sx'] for x in _library_data().get('tracks', []) if x['f'] == ident), ''))
+    if sx not in _MP4_EXTS and sx not in _OGG_EXTS or not shutil.which('ffmpeg'):
         _fs_known[ident] = True
         return None
     mp4 = sx in _MP4_EXTS
 
     def make(out):
-        probe = _upstream(conf, ident, headers={'Range': 'bytes=0-1048575'})       # the first megabyte tells whether the copy is needed
-        if probe is None:
-            return False
-        head = b''.join(itertools.islice(probe.iter_content(1 << 16), 16))        # (at most 1 MB, even if the server ignores the Range)
-        size = _size_of(probe.headers)
-        probe.close()
+        if local:
+            with open(local, 'rb') as fh:
+                head = fh.read(1 << 20)
+            size = local.stat().st_size
+        else:
+            probe = _upstream(conf, ident, headers={'Range': 'bytes=0-1048575'})       # the first megabyte tells whether the copy is needed
+            if probe is None:
+                return False
+            head = b''.join(itertools.islice(probe.iter_content(1 << 16), 16))        # (at most 1 MB, even if the server ignores the Range)
+            size = _size_of(probe.headers)
+            probe.close()
         if not _slow_to_start(sx, head) or size > _FS_MAX:
             _fs_known[ident] = True
             return False
-        up = _upstream(conf, ident)
-        if up is None:
-            return False
-        raw = out.with_name(out.name + '.raw')
+        raw = None
         try:
-            _save(up, raw)
-            cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(raw), '-map', '0:a', '-c', 'copy'] + (['-movflags', '+faststart', '-f', 'mp4'] if mp4 else ['-f', 'ogg']) + [str(out)]
+            if local:
+                src = local
+            else:
+                up = _upstream(conf, ident)
+                if up is None:
+                    return False
+                raw = src = out.with_name(out.name + '.raw')
+                _save(up, raw)
+            cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(src), '-map', '0:a', '-c', 'copy'] + (['-movflags', '+faststart', '-f', 'mp4'] if mp4 else ['-f', 'ogg']) + [str(out)]
             return subprocess.run(cmd, capture_output=True, timeout=120).returncode == 0
         finally:
-            try:
-                raw.unlink()
-            except OSError:
-                pass
-    return _cached(_TC_DIR / ('fs-' + _tc_name(ident) + ('.m4a' if mp4 else '.ogg')), make)
+            if raw is not None:
+                try:
+                    raw.unlink()
+                except OSError:
+                    pass
+    name = _tc_name(ident)[:80] + ('' if conf else '-' + hashlib.md5(ident.encode()).hexdigest()[:8])
+    return _cached(_TC_DIR / ('fs-' + name + ('.m4a' if mp4 else '.ogg')), make)
 
 
 def _send_cached(f, mimetype):
@@ -914,7 +938,7 @@ def music_prewarm():
     """Convert a song in the background (the player asks for the next one while the current one plays)."""
     d = request.get_json(silent=True) or {}
     ident, rate = d.get('id'), d.get('q')
-    if _bad_id(ident) or (rate not in TRANSCODE_RATES and rate != 0) or not _nd_conf():
+    if _bad_id(ident) or (rate not in TRANSCODE_RATES and rate != 0):
         return jsonify({'error': 'bad request'}), 400
     threading.Thread(target=(lambda: _transcoded(ident, rate)) if rate else (lambda: _faststart(ident)), daemon=True).start()
     return jsonify({'ok': True}), 202
@@ -940,6 +964,17 @@ def music_stream(ident):
         # Navidrome labels WAV audio/x-wav; browsers only reliably accept audio/wav
         ctype = 'audio/wav' if request.args.get('x') == 'wav' else None
         return _nd_proxy('stream', {'id': ident, 'format': 'raw'}, ctype=ctype, cache='private, max-age=3600')      # cacheable, so the first bytes fetched ahead of a skip are still there when the song starts
+    # no Navidrome: the same three choices, made from the file itself (a converted copy, a quick-starting copy, or the file as it is)
+    rate = 320 if request.args.get('fb') else request.args.get('q', type=int)
+    if rate in TRANSCODE_RATES:
+        f = _transcoded(ident, rate)
+        if f is not None:
+            resp = _send_cached(f, 'audio/mpeg')
+            resp.headers['X-Reclmr-Served'] = f'mp3-{rate}'
+            return resp
+    fs = _faststart(ident)
+    if fs is not None:
+        return _send_cached(fs, 'audio/ogg' if fs.suffix == '.ogg' else 'audio/mp4')
     return _file_stream(ident)
 
 
@@ -947,7 +982,7 @@ def music_stream(ident):
 def _served_header(resp):
     """A converted copy says so (see music_stream); everything else the player gets is the file itself."""
     if request.endpoint == 'music.music_stream' and 'X-Reclmr-Served' not in resp.headers:
-        resp.headers['X-Reclmr-Served'] = 'mp3-320' if request.args.get('fb') else 'original'
+        resp.headers['X-Reclmr-Served'] = 'mp3-320' if request.args.get('fb') and resp.mimetype == 'audio/mpeg' else 'original'
     return resp
 
 
@@ -1597,7 +1632,36 @@ def _romaji_lines(lines):
     return out
 
 
-@bp.route('/api/music/lyrics/<tid>')
+_LRC_TIME = re.compile(r'\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]')
+
+
+def _read_lrc(song):
+    """{synced, lines} from the .lrc file beside a song, or None. Timed lines ([01:23.45] words) make it synced; plain text is shown untimed."""
+    if not song:
+        return None
+    f = song.with_suffix('.lrc')
+    try:
+        if not f.is_file() or f.stat().st_size > 512 * 1024:
+            return None
+        text = f.read_text(encoding='utf-8-sig', errors='replace')
+    except OSError:
+        return None
+    timed, plain = [], []
+    for raw in text.splitlines():
+        stamps = list(_LRC_TIME.finditer(raw))
+        words = _LRC_TIME.sub('', raw).strip()
+        if stamps:
+            for m in stamps:
+                frac = (m.group(3) or '0')
+                timed.append([int(m.group(1)) * 60000 + int(m.group(2)) * 1000 + int(frac.ljust(3, '0')[:3]), re.sub(r'<\d+:\d+(?:[.:]\d+)?>', '', words).strip()])
+        elif raw.strip() and not re.match(r'^\[[a-zA-Z]+:.*\]$', raw.strip()):          # [ar:..] [ti:..] header tags are not lyrics
+            plain.append([None, raw.strip()])
+    if timed:
+        return {'synced': True, 'lines': sorted((l for l in timed if l[1]), key=lambda l: l[0])}
+    return {'synced': False, 'lines': plain} if plain else None
+
+
+@bp.route('/api/music/lyrics/<path:tid>')
 def music_lyrics(tid):
     """{synced, lines: [[start ms or null, text], ...]} for a song; empty when none can be found."""
     if _bad_id(tid):
@@ -1621,6 +1685,8 @@ def music_lyrics(tid):
                 out['synced'] = synced and bool(out['lines'])
         except Exception:
             return jsonify(out)                             # Navidrome hiccup: not cached, try again next time
+    else:                                                   # no Navidrome: a .lrc file next to the song (Artist - Title.lrc)
+        out = _read_lrc(_safe_music_path(tid)) or out
     if not out['synced']:                                   # nothing timed in the files: ask LRCLIB (once per song)
         f = _LYR_DIR / (re.sub(r'[^A-Za-z0-9_-]', '_', tid) + '.json')
         got = None
