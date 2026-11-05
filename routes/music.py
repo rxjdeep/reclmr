@@ -185,15 +185,64 @@ def _read_track(path, rel):
             'g': genre, 'y': year, 'n': track, 'd': round(dur, 1)}
 
 
+# The tag index is built in the background: the first scan of a big library took minutes (every file is opened), and the first request waited for all
+# of it. Now a request gets the library at once (songs not read yet show what their file name says) while a thread reads the tags and fills them in.
+_idx_mem = {}                                               # rel path -> {'k': [mtime, size], 'r': record}: what has been read so far
+_scan = {'running': False, 'left': 0}
+
+
+def _placeholder(path, rel):
+    """What a song looks like before its tags are read: title and artist from the file name."""
+    title, artist = path.stem, ''
+    mt = _FILENAME_RE.match(path.stem)
+    if mt:
+        artist, title = mt.group(1).strip(), mt.group(2).strip()
+    return {'f': rel, 't': title, 'ar': artist or 'Unknown Artist', 'al': '', 'g': '', 'y': '', 'n': 0, 'd': 0}
+
+
+def _save_index():
+    try:
+        tmp = _INDEX_FILE.with_suffix('.tmp')
+        with _index_lock:
+            data = dict(_idx_mem)
+        tmp.write_text(json.dumps(data))
+        tmp.replace(_INDEX_FILE)
+    except OSError:
+        pass
+
+
+def _scan_tags(todo):
+    """Background thread: read the tags of the songs not yet in the index."""
+    try:
+        done = 0
+        for p, rel, key in todo:
+            rec = _read_track(p, rel)
+            with _index_lock:
+                _idx_mem[rel] = {'k': key, 'r': rec}
+            done += 1
+            _scan['left'] = len(todo) - done
+            if done % 100 == 0:
+                _save_index()
+        _save_index()
+    finally:
+        _scan['running'] = False
+        _scan['left'] = 0
+        _invalidate()                                       # the next library request has the real tags
+
+
 def _build_index():
     base = shared.MUSIC_DIR
-    try:
-        cache = json.loads(_INDEX_FILE.read_text()) if _INDEX_FILE.exists() else {}
-    except Exception:
-        cache = {}
-    if cache.get('_dir') != str(base):
-        cache = {'_dir': str(base)}
-    out, fresh = [], {'_dir': str(base)}
+    with _index_lock:
+        if not _idx_mem or _idx_mem.get('_dir') != str(base):
+            try:
+                disk = json.loads(_INDEX_FILE.read_text()) if _INDEX_FILE.exists() else {}
+            except Exception:
+                disk = {}
+            _idx_mem.clear()
+            if disk.get('_dir') == str(base):
+                _idx_mem.update(disk)
+            _idx_mem['_dir'] = str(base)
+    out, fresh, todo = [], {}, []
     if base.exists():
         for root, dirs, files in os.walk(base):
             dirs[:] = [d for d in dirs if not d.startswith('.')]
@@ -207,20 +256,24 @@ def _build_index():
                     continue
                 rel = str(p.relative_to(base))
                 key = [st.st_mtime, st.st_size]
-                hit = cache.get(rel)
+                with _index_lock:
+                    hit = _idx_mem.get(rel)
                 if hit and hit.get('k') == key:
                     rec = hit['r']
+                    fresh[rel] = hit
                 else:
-                    rec = _read_track(p, rel)
-                rec = dict(rec, a=int(st.st_mtime))
-                fresh[rel] = {'k': key, 'r': {k: v for k, v in rec.items() if k != 'a'}}
-                out.append(rec)
-    try:
-        tmp = _INDEX_FILE.with_suffix('.tmp')
-        tmp.write_text(json.dumps(fresh))
-        tmp.replace(_INDEX_FILE)
-    except OSError:
-        pass
+                    rec = _placeholder(p, rel)
+                    todo.append((p, rel, key))
+                out.append(dict(rec, a=int(st.st_mtime)))
+    with _index_lock:                                       # forget songs that were deleted
+        pending = {t[1] for t in todo}
+        for k in [k for k in _idx_mem if k != '_dir' and k not in fresh and k not in pending]:
+            _idx_mem.pop(k, None)
+    if todo and not _scan['running']:
+        _scan.update(running=True, left=len(todo))
+        threading.Thread(target=_scan_tags, args=(todo,), daemon=True).start()
+    elif not todo:
+        _scan['left'] = 0
     out.sort(key=lambda r: (r['ar'].lower(), r['al'].lower(), r['n'], r['t'].lower()))
     return out
 
@@ -347,8 +400,7 @@ def _file_playlists(tracks):
 
 
 def _file_library():
-    with _index_lock:
-        recs = _build_index()
+    recs = _build_index()
     with _state_lock:
         st = _load_state()
     favs, plays = set(st.get('favs', [])), st.get('plays', {})
@@ -363,7 +415,7 @@ def _file_library():
             'c': r['f'], 'p': r['f'], 'fav': r['f'] in favs, 'pc': n, 'lp': last,
             'br': 0, 'sx': r['f'].rsplit('.', 1)[-1],
         })
-    return {'source': 'files', 'tracks': tracks, 'playlists': _file_playlists(tracks)}
+    return {'source': 'files', 'tracks': tracks, 'playlists': _file_playlists(tracks), 'scanning': _scan['left'] if _scan['running'] else 0}
 
 
 def _library_data():
@@ -385,7 +437,7 @@ def _library_data():
             data['error'] = 'Navidrome unavailable (' + error + '). Showing file tags'
     elif not data['tracks']:
         data['error'] = 'Navidrome returned no songs'
-    if not error:
+    if not error and not data.get('scanning'):
         with _nd_lock:
             _nd_cache.update(ts=now, data=data)
     return data

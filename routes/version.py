@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.1"
+VERSION = "0.8.2"
 
 CHANGELOG = [
+    {
+        "version": "0.8.2",
+        "date": "2026-11-05",
+        "changes": [
+            "First open of a big music folder no longer waits for the scan",
+            "The library appears at once (titles from file names) while a background thread reads the tags and fills them in",
+            "A small notice shows how many songs are left",
+            "The saved copy of the library now also speeds up the next open without Navidrome",
+        ]
+    },
     {
         "version": "0.8.1",
         "date": "2026-11-05",

@@ -133,3 +133,32 @@ class TestFileModeExtras:
         monkeypatch.setattr(music, '_transcoded', lambda ident, rate: None)
         r = client.post('/api/music/prewarm', json={'id': 'Artist/Artist - One.mp3', 'q': 128}, headers=auth_headers)
         assert r.status_code == 202
+
+
+class TestBackgroundScan:
+    def test_library_answers_at_once_and_the_tags_arrive_later(self, client, auth_headers, lib, monkeypatch):
+        import threading, time
+        import routes.music as music
+        gate = threading.Event()
+
+        def slow_read(path, rel):                          # stands for a drive that takes minutes to read
+            gate.wait(5)
+            return {'f': rel, 't': 'Real Title', 'ar': 'Real Artist', 'al': 'Real Album', 'g': '', 'y': '', 'n': 1, 'd': 200}
+        monkeypatch.setattr(music, '_read_track', slow_read)
+        music._idx_mem.clear()
+        music._scan.update(running=False, left=0)
+        music._invalidate()
+        t0 = time.time()
+        d = client.get('/api/music/library', headers=auth_headers).get_json()
+        assert time.time() - t0 < 2                         # did not wait for the scan
+        assert d['scanning'] == 3 and len(d['tracks']) == 3
+        assert {t['t'] for t in d['tracks']} == {'One', 'Two', 'Three'}              # from the file names for now
+        gate.set()
+        for _ in range(100):
+            if not music._scan['running']:
+                break
+            time.sleep(0.05)
+        music._invalidate()
+        d = client.get('/api/music/library', headers=auth_headers).get_json()
+        assert d['scanning'] == 0 and {t['t'] for t in d['tracks']} == {'Real Title'}
+        assert (music._INDEX_FILE).exists()                  # kept for next time

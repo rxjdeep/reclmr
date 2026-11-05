@@ -125,7 +125,7 @@ function mzArtistLinks(t, cls, act) {
 }
 function mzIngest(d) {
   mz.source = d.source || '';
-  mz.error = d.error || '';                                      // reading the files is the normal way now, not something to apologise for
+  mz.error = d.error || (d.scanning ? 'Reading the tags of your music (' + d.scanning + ' songs left). Titles fill in as it goes.' : '');   // the first scan of a big library takes a while; the songs are playable meanwhile
   musicPlaylist = d.tracks || [];
   mz.playlists = d.playlists || [];
   mz.byId = new Map(); mz.artists = new Map(); mz.albums = new Map(); mz.genres = new Map(); mz.plCache = {};
@@ -163,7 +163,7 @@ function mzIngest(d) {
 function mzLibCacheRead() {
   try {
     var c = JSON.parse(localStorage.getItem('mzLib') || 'null');
-    return c && c.tracks && c.tracks.length && c.source === 'navidrome' ? c : null;
+    return c && c.tracks && c.tracks.length && (c.source === 'navidrome' || c.source === 'files') && !c.scanning ? c : null;
   } catch (_) { return null; }
 }
 function mzLibCacheWrite(d) {
@@ -213,7 +213,7 @@ async function mzLoad() {
     var r = await fetch('/api/music/library' + (fresh ? '?fresh=1' : ''));
     if (!r.ok) throw new Error('HTTP ' + r.status);
     var d = await r.json();
-    setTimeout(function () { mzLibCacheWrite(d); }, 1500);       // after the screen has drawn: stringifying the whole library is not free
+    if (!d.scanning) setTimeout(function () { mzLibCacheWrite(d); }, 1500);       // after the screen has drawn: stringifying the whole library is not free
     var had = mz.loaded;
     mzIngest(d);
     if (had && mz.queue.length) {
@@ -227,6 +227,8 @@ async function mzLoad() {
       mzRestoreState();
     }
     mzRender();
+    clearTimeout(mz.scanT);
+    if (d.scanning) mz.scanT = setTimeout(loadMusic, 4000);        // look again until every song's tags have been read
   } catch (e) {
     if (!mz.loaded) content.innerHTML = '<div class="wm-empty">Failed to load music</div>';
   }
