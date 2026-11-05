@@ -8,9 +8,22 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.3"
+VERSION = "0.8.4"
 
 CHANGELOG = [
+    {
+        "version": "0.8.4",
+        "date": "2026-11-05",
+        "changes": [
+            "With Navidrome, songs now play straight from the file on disk",
+            "Navidrome stays the library backend (tags, playlists, stars, covers)",
+            "the audio no longer passes through it",
+            "The file is found by the exact size Navidrome reports (its own path is made up on some setups), so no settings are needed",
+            "Quality conversions and quick-start copies also come from the local file, reusing copies already made",
+            "A song whose file is not on this machine still plays through Navidrome as before",
+            "X-Reclmr-Via: file or navidrome on a stream response shows which path a song took",
+        ]
+    },
     {
         "version": "0.8.3",
         "date": "2026-11-05",

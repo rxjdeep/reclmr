@@ -66,6 +66,8 @@ What you get from the files alone:
 
 Already run [Navidrome](https://www.navidrome.org)? Set `RECLMR_NAVIDROME_URL`, `RECLMR_NAVIDROME_USER` and `RECLMR_NAVIDROME_PASS` in `.env` and restart: reclmr then reads the library from Navidrome and keeps stars, play counts and playlists there. On top of the above that adds artist biographies and photos, credits and scrobbling. The credentials stay on the server; the browser only talks to reclmr. Remove the three lines to go back to plain files. Playlists are not copied between the two, since each side keeps its own.
 
+**Navidrome is the backend, not in the audio path.** When the music folder is on the same machine, a song plays straight from its file: reclmr finds the file by the exact size Navidrome reports, so Navidrome's own settings and folder layout don't matter. Quality conversions and quick-start copies are made from that file too. A song whose file is not here (a different machine, or moved since Navidrome last scanned) still plays through Navidrome. `X-Reclmr-Via: file` or `navidrome` on a `/api/music/stream/…` response tells you which path a song took.
+
 **Ollama and ComfyUI:** install them, then open **My Lab**. The Model Advisor lists what fits your hardware and downloads it to the right place; chat models are imported into Ollama automatically. Piper voices (`pip install piper-tts`) go in `~/.local/share/piper/`.
 
 **Desktop media widget:** for shuffle and repeat in the KDE or GNOME media widget, run the companion on your desktop:

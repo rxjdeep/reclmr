@@ -70,6 +70,16 @@ def _safe_music_path(filename):
     return None
 
 
+def _local_src(ident):
+    """The file of a song on this machine: a path in file mode, or (with Navidrome) the path Navidrome reported for that id. None when it is not
+    here (another machine, a different mount, moved since the last scan): the caller then asks Navidrome for the bytes as before."""
+    rel = _nd_paths.get(ident) if _nd_conf() else ident
+    if not rel:
+        return None
+    p = _safe_music_path(rel)
+    return p if p and p.is_file() else None
+
+
 def _file_stream(filename):
     """Stream a music file. Uses Flask send_file which handles
     HTTP Range requests natively for fast seeking on iOS."""
@@ -338,6 +348,54 @@ def _epoch(iso):
         return 0
 
 
+_nd_paths = {}      # Navidrome song id -> path inside the music folder, filled whenever the library is read: lets a song be played from the file itself
+_walk = {'at': 0.0, 'by': {}}
+
+
+def _local_sizes():
+    """{(size in bytes, extension): [paths]} of the music folder, from a walk that only stats files (no tags are read), kept for 5 minutes."""
+    now = time.time()
+    if _walk['by'] and now - _walk['at'] < 300:
+        return _walk['by']
+    base, by = shared.MUSIC_DIR, {}
+    if base.exists():
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            for name in files:
+                ext = os.path.splitext(name)[1].lower()
+                if ext in MUSIC_EXTS and not name.startswith('.'):
+                    try:
+                        by.setdefault((os.stat(os.path.join(root, name)).st_size, ext), []).append(os.path.relpath(os.path.join(root, name), base))
+                    except OSError:
+                        pass
+    _walk.update(at=now, by=by)
+    return by
+
+
+def _key(text):
+    return re.sub(r'[^a-z0-9]+', '', (text or '').lower())
+
+
+def _nd_local_paths(tracks):
+    """Which file on this machine each Navidrome song is. Navidrome's own `path` is tried first (it is the real one on some setups; on others it is a
+    made-up Artist/Album/Title), then the file size: Navidrome reports the exact size in bytes, and a file of the same size and type is the same
+    file. A song that cannot be placed is simply not here: it plays through Navidrome as before."""
+    by = _local_sizes()
+    out = {}
+    for t in tracks:
+        rel = t['p'] if t.get('p') and (_safe_music_path(t['p']) or Path('/nonexistent')).is_file() else None
+        if not rel and t.get('sz') and t.get('sx'):
+            cands = by.get((int(t['sz']), '.' + str(t['sx']).lower()), [])
+            if len(cands) == 1:
+                rel = cands[0]
+            elif cands:                                       # several files of exactly that size (copies): the one named like the song
+                k = _key(t.get('t'))
+                rel = next((c for c in cands if k and k in _key(Path(c).stem)), None)
+        if rel:
+            out[t['f']] = rel
+    return out
+
+
 def _nd_song(s):
     path = s.get('path') or ''
     base = str(shared.MUSIC_DIR).rstrip('/') + '/'
@@ -380,6 +438,8 @@ def _nd_library():
         if songs:
             break
     tracks = [_nd_song(s) for s in songs if s.get('id')]
+    global _nd_paths
+    _nd_paths = _nd_local_paths(tracks)                        # (replaced whole, so a song being requested never finds it half filled)
     try:
         pls = _nd_get('getPlaylists').get('playlists', {}).get('playlist', [])
         playlists = [{'id': p['id'], 'name': p.get('name', ''), 'n': p.get('songCount', 0),
@@ -862,17 +922,19 @@ def _cached(f, make):
 def _transcoded(ident, rate):
     """Path of the MP3 of this song at `rate` kbps (made now if it does not exist yet), or None if it could not be made."""
     conf = _nd_conf()
-    if not conf:                                            # no Navidrome: convert the file with ffmpeg
-        src = _safe_music_path(ident)
-        if not src or not src.is_file() or not shutil.which('ffmpeg'):
-            return None
-
+    src = _local_src(ident)
+    if src and shutil.which('ffmpeg'):                      # the file is here: convert it with ffmpeg, no round trip through Navidrome
         def make_local(tmp):
             cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(src), '-map', '0:a:0', '-vn', '-map_metadata', '-1',
                    '-c:a', 'libmp3lame', '-b:a', f'{rate}k', '-f', 'mp3', str(tmp)]
             return subprocess.run(cmd, capture_output=True, timeout=600).returncode == 0
-        # a path can hold characters the file name cannot, so two songs must not share a name: add a short hash of the path
-        return _cached(_TC_DIR / f'{_tc_name(ident)[:80]}-{hashlib.md5(ident.encode()).hexdigest()[:8]}-{rate}.mp3', make_local)
+        # with Navidrome the id is opaque and unique (and the same name as its own copies, so existing ones are reused); a path can hold characters a file name cannot, so add a hash
+        name = f'{_tc_name(ident)}-{rate}.mp3' if conf else f'{_tc_name(ident)[:80]}-{hashlib.md5(ident.encode()).hexdigest()[:8]}-{rate}.mp3'
+        got = _cached(_TC_DIR / name, make_local)
+        if got is not None or not conf:
+            return got
+    if not conf:
+        return None
 
     def make(tmp):
         up = _upstream(conf, ident, rate)
@@ -932,8 +994,8 @@ def _faststart(ident):
     conf = _nd_conf()
     if _fs_known.get(ident):
         return None
-    local = None if conf else _safe_music_path(ident)      # no Navidrome: look at and copy the file itself
-    if not conf and not (local and local.is_file()):
+    local = _local_src(ident)                              # the file is here: look at and copy it directly
+    if not conf and not local:
         return None
     sx = (local.suffix.lstrip('.').lower() if local else next((x['sx'] for x in _library_data().get('tracks', []) if x['f'] == ident), ''))
     if sx not in _MP4_EXTS and sx not in _OGG_EXTS or not shutil.which('ffmpeg'):
@@ -974,7 +1036,7 @@ def _faststart(ident):
                     raw.unlink()
                 except OSError:
                     pass
-    name = _tc_name(ident)[:80] + ('' if conf else '-' + hashlib.md5(ident.encode()).hexdigest()[:8])
+    name = _tc_name(ident)[:80] + ('' if conf else '-' + hashlib.md5(ident.encode()).hexdigest()[:8])      # (the same name as before with Navidrome, so copies already made are reused)
     return _cached(_TC_DIR / ('fs-' + name + ('.m4a' if mp4 else '.ogg')), make)
 
 
@@ -997,27 +1059,39 @@ def music_prewarm():
 
 @bp.route('/api/music/stream/<path:ident>')
 def music_stream(ident):
-    if _nd_conf():
-        if _bad_id(ident):
-            return jsonify({'error': 'bad id'}), 400
-        if request.args.get('fb'):  # browser could not decode the original: transcode (no seeking)
-            return _nd_proxy('stream', {'id': ident, 'format': 'mp3', 'maxBitRate': 320}, ctype='audio/mpeg')
-        rate = request.args.get('q', type=int)
-        if rate in TRANSCODE_RATES:                        # a lower quality was asked for: a cached MP3, so seeking still works
+    if _bad_id(ident):
+        return jsonify({'error': 'bad id'}), 400
+    conf = _nd_conf()
+    local = _local_src(ident)
+    if local is not None or not conf:
+        # The file is on this machine: serve it from the disk (the original, a converted copy, or a quick-starting copy). Navidrome, if there is one,
+        # only supplies the library; the audio does not pass through it.
+        fb = bool(request.args.get('fb'))
+        rate = 320 if fb else request.args.get('q', type=int)
+        if rate in TRANSCODE_RATES:
             f = _transcoded(ident, rate)
             if f is not None:
                 resp = _send_cached(f, 'audio/mpeg')
                 resp.headers['X-Reclmr-Served'] = f'mp3-{rate}'     # lets the player's quality badge say what it really got
+                resp.headers['X-Reclmr-Via'] = 'file'
                 return resp
-        fs = _faststart(ident)                             # a song that is slow to start (see above): the quick-starting copy
-        if fs is not None:
-            return _send_cached(fs, 'audio/ogg' if fs.suffix == '.ogg' else 'audio/mp4')
-        # Navidrome labels WAV audio/x-wav; browsers only reliably accept audio/wav
-        ctype = 'audio/wav' if request.args.get('x') == 'wav' else None
-        return _nd_proxy('stream', {'id': ident, 'format': 'raw'}, ctype=ctype, cache='private, max-age=3600')      # cacheable, so the first bytes fetched ahead of a skip are still there when the song starts
-    # no Navidrome: the same three choices, made from the file itself (a converted copy, a quick-starting copy, or the file as it is)
-    rate = 320 if request.args.get('fb') else request.args.get('q', type=int)
-    if rate in TRANSCODE_RATES:
+        if not (fb and conf and local is not None):                # (a failed fallback conversion with Navidrome around: let Navidrome try, below)
+            fs = _faststart(ident)                                 # a song that is slow to start (see above): the quick-starting copy
+            if fs is not None:
+                resp = _send_cached(fs, 'audio/ogg' if fs.suffix == '.ogg' else 'audio/mp4')
+                resp.headers['X-Reclmr-Via'] = 'file'
+                return resp
+            if local is not None:
+                rel = _nd_paths.get(ident) if conf else ident
+                resp = _file_stream(rel)
+                resp.headers['X-Reclmr-Via'] = 'file'
+                return resp
+            return _file_stream(ident)
+    # Navidrome has the song but the file is not here: proxy its bytes as before
+    if request.args.get('fb'):  # browser could not decode the original: transcode (no seeking)
+        return _nd_proxy('stream', {'id': ident, 'format': 'mp3', 'maxBitRate': 320}, ctype='audio/mpeg')
+    rate = request.args.get('q', type=int)
+    if rate in TRANSCODE_RATES:                        # a lower quality was asked for: a cached MP3, so seeking still works
         f = _transcoded(ident, rate)
         if f is not None:
             resp = _send_cached(f, 'audio/mpeg')
@@ -1026,7 +1100,9 @@ def music_stream(ident):
     fs = _faststart(ident)
     if fs is not None:
         return _send_cached(fs, 'audio/ogg' if fs.suffix == '.ogg' else 'audio/mp4')
-    return _file_stream(ident)
+    # Navidrome labels WAV audio/x-wav; browsers only reliably accept audio/wav
+    ctype = 'audio/wav' if request.args.get('x') == 'wav' else None
+    return _nd_proxy('stream', {'id': ident, 'format': 'raw'}, ctype=ctype, cache='private, max-age=3600')      # cacheable, so the first bytes fetched ahead of a skip are still there when the song starts
 
 
 @bp.after_request
@@ -1034,6 +1110,7 @@ def _served_header(resp):
     """A converted copy says so (see music_stream); everything else the player gets is the file itself."""
     if request.endpoint == 'music.music_stream' and 'X-Reclmr-Served' not in resp.headers:
         resp.headers['X-Reclmr-Served'] = 'mp3-320' if request.args.get('fb') and resp.mimetype == 'audio/mpeg' else 'original'
+        resp.headers.setdefault('X-Reclmr-Via', 'navidrome' if _nd_conf() else 'file')
     return resp
 
 

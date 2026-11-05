@@ -162,3 +162,72 @@ class TestBackgroundScan:
         d = client.get('/api/music/library', headers=auth_headers).get_json()
         assert d['scanning'] == 0 and {t['t'] for t in d['tracks']} == {'Real Title'}
         assert (music._INDEX_FILE).exists()                  # kept for next time
+
+
+class TestNavidromeBackendLocalPlayback:
+    """With Navidrome configured it supplies the library; the audio itself is served from the file on this machine."""
+
+    @pytest.fixture
+    def nd(self, lib, monkeypatch):
+        import routes.music as music
+        monkeypatch.setattr(music, '_nd_conf', lambda: ('http://navidrome.invalid', 'u', 'p'))
+        monkeypatch.setattr(music, '_nd_paths', {'ndid1': 'Artist/Artist - One.mp3', 'ndgone': 'Artist/deleted.mp3', 'ndabs': '/elsewhere/x.mp3'})
+        calls = []
+
+        def fake_proxy(endpoint, params, **kw):               # what would have gone through Navidrome
+            calls.append((endpoint, params))
+            from flask import Response
+            return Response(b'from-navidrome', mimetype='audio/mpeg')
+        monkeypatch.setattr(music, '_nd_proxy', fake_proxy)
+        return calls
+
+    def test_the_file_is_served_without_asking_navidrome(self, client, auth_headers, nd):
+        r = client.get('/api/music/stream/ndid1', headers=dict(auth_headers, Range='bytes=0-3'))
+        assert r.status_code == 206 and r.data == b'not '                      # the first bytes of the real file
+        assert r.headers['X-Reclmr-Via'] == 'file' and r.headers['X-Reclmr-Served'] == 'original'
+        assert nd == []
+
+    def test_a_song_whose_file_is_not_here_still_plays_through_navidrome(self, client, auth_headers, nd):
+        for ident in ('ndgone', 'ndabs', 'never-seen'):
+            r = client.get('/api/music/stream/' + ident, headers=auth_headers)
+            assert r.data == b'from-navidrome' and r.headers['X-Reclmr-Via'] == 'navidrome'
+        assert len(nd) == 3
+
+    def test_quality_is_converted_from_the_local_file(self, client, auth_headers, nd, lib, monkeypatch):
+        import routes.music as music
+        made = lib['dir'] / 'made.mp3'
+        made.write_bytes(b'ID3' + b'0' * 2000)
+        seen = []
+        monkeypatch.setattr(music, '_transcoded', lambda ident, rate: (seen.append((ident, rate)), made)[1])
+        r = client.get('/api/music/stream/ndid1?q=96', headers=auth_headers)
+        assert r.headers['X-Reclmr-Served'] == 'mp3-96' and r.headers['X-Reclmr-Via'] == 'file' and seen == [('ndid1', 96)]
+        assert nd == []
+
+    def test_a_failed_fallback_conversion_lets_navidrome_try(self, client, auth_headers, nd, monkeypatch):
+        import routes.music as music
+        monkeypatch.setattr(music, '_transcoded', lambda ident, rate: None)
+        r = client.get('/api/music/stream/ndid1?fb=1', headers=auth_headers)
+        assert r.data == b'from-navidrome' and nd and nd[0][1]['format'] == 'mp3'
+
+    def test_navidrome_paths_outside_the_folder_are_never_followed(self, client, auth_headers, nd, monkeypatch, tmp_path):
+        import routes.music as music
+        (tmp_path / 'secret.mp3').write_bytes(b'secret')
+        monkeypatch.setattr(music, '_nd_paths', {'esc': '../secret.mp3', 'abs': str(tmp_path / 'secret.mp3')})
+        for ident in ('esc', 'abs'):
+            assert client.get('/api/music/stream/' + ident, headers=auth_headers).data == b'from-navidrome'
+
+    def test_a_song_is_found_by_its_size_when_navidromes_path_is_made_up(self, lib, monkeypatch):
+        import routes.music as music
+        music._walk.update(at=0.0, by={})
+        one = lib['dir'] / 'Artist' / 'Artist - One.mp3'
+        size = one.stat().st_size
+        (lib['dir'] / 'Artist' / 'Copy of One.mp3').write_bytes(one.read_bytes())          # same size: the one named like the song is chosen
+        tracks = [
+            {'f': 'a', 'p': 'Artist/Artist - One.mp3', 'sz': size, 'sx': 'mp3', 't': 'One'},                 # a real path: used as it is
+            {'f': 'b', 'p': 'Made Up/Album/One.mp3', 'sz': size, 'sx': 'mp3', 't': 'One'},                  # invented path: found by size, then by name
+            {'f': 'c', 'p': 'Made Up/Album/Nope.mp3', 'sz': size + 12345, 'sx': 'mp3', 't': 'Nope'},        # no file of that size: not here
+            {'f': 'd', 'p': 'x', 'sz': size, 'sx': 'flac', 't': 'One'},                                    # same size but another type: not the same file
+        ]
+        got = music._nd_local_paths(tracks)
+        assert got['a'] == 'Artist/Artist - One.mp3'
+        assert got['b'] in ('Artist/Artist - One.mp3', 'Artist/Copy of One.mp3') and 'c' not in got and 'd' not in got      # identical copies: either is right
