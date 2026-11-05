@@ -8,9 +8,24 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.2"
+VERSION = "0.8.3"
 
 CHANGELOG = [
+    {
+        "version": "0.8.3",
+        "date": "2026-11-05",
+        "changes": [
+            "Simple install: one command, no media server, and the installer no longer stops early",
+            "README: clone, run ./install.sh, open localhost:8899",
+            "The installer asks where your music is",
+            "voice models (~230 MB) are now optional",
+            "./install.sh --no-service sets up without starting anything",
+            "--yes asks nothing",
+            "Fixed: without Tailscale the installer exited before printing the passcode and address",
+            "Shorter finish: address, passcode and music folder instead of a page of tunnel instructions",
+            "Docs: Music section (files by default, Navidrome optional)",
+        ]
+    },
     {
         "version": "0.8.2",
         "date": "2026-11-05",

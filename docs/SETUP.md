@@ -36,8 +36,9 @@ Settings are environment variables in `.env` (see [`.env.example`](../.env.examp
 | `RECLMR_FILES_DIR` | `~` | Base folder for Files, and the folder holding `Camera` and `Screenshots` for the Gallery |
 | `RECLMR_BROWSE_ROOT` | *(= `RECLMR_FILES_DIR`)* | Set to `/` to let Files browse the whole machine |
 | `RECLMR_BOOKS_DIR` | `~/Books` | Audiobook library |
-| `RECLMR_MUSIC_DIR` | `~/Music` | Music folder (file-tag fallback) |
-| `RECLMR_NAVIDROME_URL` | `http://127.0.0.1:4533/navidrome` | Navidrome / Subsonic server |
+| `RECLMR_MUSIC_DIR` | `~/Music` | Your music. Songs in it (and its subfolders) just play |
+| `RECLMR_PLAYLISTS_DIR` | `./playlists` | Where playlists are kept, one `.m3u8` file each |
+| `RECLMR_NAVIDROME_URL` | `http://127.0.0.1:4533/navidrome` | *Optional.* Navidrome / Subsonic server |
 | `RECLMR_NAVIDROME_USER`, `RECLMR_NAVIDROME_PASS` | | Navidrome credentials, used on the server only |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama endpoint |
 | `RECLMR_LLM_MODEL` | `llama3.2` | Default chat model |
@@ -50,7 +51,20 @@ Settings are environment variables in `.env` (see [`.env.example`](../.env.examp
 
 Optional: `RECLMR_OSINT_DIR` (privacy scanner), `RECLMR_JOURNAL_DIR` (Obsidian vault for voice notes), `RECLMR_HERMES_HOME` (agents panel).
 
-**Navidrome:** install it, point it at your music, then set the three `RECLMR_NAVIDROME_*` values. reclmr proxies streams, artwork, stars and scrobbles on the server, so the credentials never reach the browser.
+## Music
+
+Put songs in your music folder (`RECLMR_MUSIC_DIR`, `~/Music` unless you chose another at install) and open **Music**. MP3, FLAC, M4A, Opus, OGG, AAC and WAV play as they are. Nothing else is needed.
+
+What you get from the files alone:
+
+- **Library:** titles, artists, albums and covers are read from the files' tags and embedded art. The first scan of a big folder runs in the background; the app is usable at once and the details fill in as it goes.
+- **Playlists:** each one is a plain `.m3u8` file in `playlists/`. Open them in any other player, copy or sync the folder to back them up, or drop in a playlist from elsewhere and it shows up.
+- **Lyrics:** a `.lrc` file next to a song (`Artist - Title.lrc`) is used first, then [LRCLIB](https://lrclib.net) (artist and title only are sent).
+- **Quality setting:** lower-bitrate MP3 copies for mobile data are made with `ffmpeg` and kept (`RECLMR_TRANSCODE_CACHE_MB` caps the cache). Install `ffmpeg` for this and for album art.
+
+### Navidrome (optional)
+
+Already run [Navidrome](https://www.navidrome.org)? Set `RECLMR_NAVIDROME_URL`, `RECLMR_NAVIDROME_USER` and `RECLMR_NAVIDROME_PASS` in `.env` and restart: reclmr then reads the library from Navidrome and keeps stars, play counts and playlists there. On top of the above that adds artist biographies and photos, credits and scrobbling. The credentials stay on the server; the browser only talks to reclmr. Remove the three lines to go back to plain files. Playlists are not copied between the two, since each side keeps its own.
 
 **Ollama and ComfyUI:** install them, then open **My Lab**. The Model Advisor lists what fits your hardware and downloads it to the right place; chat models are imported into Ollama automatically. Piper voices (`pip install piper-tts`) go in `~/.local/share/piper/`.
 

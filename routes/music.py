@@ -292,9 +292,8 @@ def _save_state(st):
 
 
 
-# ─── Navidrome / Subsonic (primary metadata source) ──────────────────────
-# Tags, covers, stars and play counts come from Navidrome (more accurate than
-# reading files). Credentials stay server-side; streams and covers are proxied
+# ─── Navidrome / Subsonic (optional: used when credentials are set, otherwise the music folder is read directly) ──
+# Tags, covers, stars and play counts then come from Navidrome. Credentials stay server-side; streams and covers are proxied
 # so the browser only ever talks to reclmr. Without credentials the file-tag
 # index above is used instead.
 _nd_cache = {'ts': 0, 'data': None}

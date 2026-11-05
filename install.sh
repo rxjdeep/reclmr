@@ -2,10 +2,22 @@
 # ═══════════════════════════════════════════════════════════════
 # reclmr — Installer
 # Works on: Linux (systemd), macOS (launchd), WSL
-# One command: curl -sSL <repo>/install.sh | bash
-# Or: ./install.sh
+#   ./install.sh                 set up and start it as a background service
+#   ./install.sh --no-service    set up only; run it yourself:  .venv/bin/python app.py
+#   ./install.sh --yes           never ask a question (take the defaults)
 # ═══════════════════════════════════════════════════════════════
 set -e
+
+NO_SERVICE=0
+ASK=1
+for arg in "$@"; do
+    case "$arg" in
+        --no-service) NO_SERVICE=1 ;;
+        --yes|-y) ASK=0 ;;
+        -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    esac
+done
+[ -t 0 ] || ASK=0      # piped or in CI: no questions
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_NAME="reclmr"
@@ -88,9 +100,9 @@ if ! command -v qrencode &>/dev/null; then
     fi
 fi
 
-# ─── Install ffmpeg (audio: Whisper STT + Piper TTS) ─────────────
+# ─── Install ffmpeg (music conversion, album art, Whisper STT + Piper TTS) ─
 if ! command -v ffmpeg &>/dev/null; then
-    echo "→ Installing ffmpeg (for voice)..."
+    echo "→ Installing ffmpeg (music quality setting, voice)..."
     if [ "$OS_TYPE" = "macos" ]; then
         command -v brew &>/dev/null && brew install ffmpeg 2>/dev/null || echo "  (optional — skipped)"
     elif command -v dnf &>/dev/null; then
@@ -165,12 +177,35 @@ if [ ! -f .env ]; then
         echo "RECLMR_PIN=$PIN" >> .env
     fi
     echo "✓ .env created (edit it to customize paths)"
+
+    # Where the music is. Nothing else is needed to play it: no media server.
+    MUSIC_ANS="$HOME/Music"
+    if [ "$ASK" = 1 ]; then
+        read -r -p "Where is your music? [$MUSIC_ANS] " ANS || true
+        [ -n "$ANS" ] && MUSIC_ANS="${ANS/#\~/$HOME}"
+    fi
+    if grep -q '^RECLMR_MUSIC_DIR=' .env; then
+        if [ "$OS_TYPE" = "macos" ]; then
+            sed -i '' "s|^RECLMR_MUSIC_DIR=.*|RECLMR_MUSIC_DIR=$MUSIC_ANS|" .env
+        else
+            sed -i "s|^RECLMR_MUSIC_DIR=.*|RECLMR_MUSIC_DIR=$MUSIC_ANS|" .env
+        fi
+    else
+        echo "RECLMR_MUSIC_DIR=$MUSIC_ANS" >> .env
+    fi
 fi
 
 # Lock down .env — contains PIN, SECRET_KEY, and any user-supplied tokens.
 chmod 600 .env 2>/dev/null || true
 
-# ─── Piper TTS voices (downloaded so speech works out of the box) ──
+# ─── Piper TTS voices (optional, ~230 MB: only the voice assistant and read-aloud use them) ──
+WANT_VOICES=0
+[ "${RECLMR_VOICES:-}" = "1" ] && WANT_VOICES=1
+if [ "$WANT_VOICES" = 0 ] && [ "$ASK" = 1 ]; then
+    read -r -p "Download offline voice models for speech (~230 MB)? [y/N] " VANS || true
+    case "$VANS" in [yY]*) WANT_VOICES=1 ;; esac
+fi
+if [ "$WANT_VOICES" = 1 ]; then
 PIPER_DIR=$(grep '^RECLMR_PIPER_DIR=' .env 2>/dev/null | cut -d= -f2- | sed 's/^"//;s/"$//')
 if [ -z "$PIPER_DIR" ]; then
     PIPER_DIR="$HOME/.local/share/piper"
@@ -192,10 +227,28 @@ _fetch_voice() {
 _fetch_voice "lessac" "high"
 _fetch_voice "lessac" "medium"
 _fetch_voice "kathleen" "low"
+else
+    echo "  (skipping voice models: speech uses your browser's voice. Add them later: RECLMR_VOICES=1 ./install.sh)"
+fi
 
 # ─── SSL certs not needed — tunnel handles HTTPS ────────────────
 # The app runs HTTP on localhost only (not exposed). The cloudflared
 # tunnel provides trusted HTTPS externally. No local certs needed.
+
+PORT=$(grep "^RECLMR_PORT=" .env 2>/dev/null | tail -n1 | cut -d= -f2 || echo "8899")
+PORT=${PORT:-8899}
+if [ "$NO_SERVICE" = 1 ]; then
+    PIN=$(grep "^RECLMR_PIN=" .env 2>/dev/null | tail -n1 | cut -d= -f2)
+    MUSIC=$(grep "^RECLMR_MUSIC_DIR=" .env 2>/dev/null | tail -n1 | cut -d= -f2)
+    echo ""
+    echo "✓ reclmr is set up (nothing was started)."
+    echo ""
+    echo "  Run it:     cd $APP_DIR && .venv/bin/python app.py"
+    echo "  Open:       http://localhost:${PORT}"
+    echo "  Passcode:   ${PIN}   (kept in .env)"
+    echo "  Music:      ${MUSIC:-~/Music}   (just put songs there)"
+    exit 0
+fi
 
 # ─── Service setup (platform-specific) ──────────────────────────
 echo ""
@@ -298,7 +351,7 @@ echo "✓ 'reclmr' command installed to ~/.local/bin (reclmr update, status, qr,
 
 # The reclmr wrapper starts the app and the Tailscale funnel together
 # (no third-party relays). A non-root user may need `sudo tailscale funnel`.
-"$APP_DIR/reclmr" start
+"$APP_DIR/reclmr" start || echo "  (the tunnel did not start: the app itself is running. See docs/SETUP.md to set up phone access)"
 
 # Get the funnel URL (can take a few seconds to appear)
 TUNNEL_URL=""
@@ -326,73 +379,27 @@ echo "╔═══════════════════════�
 echo "║   ✓ reclmr installed!                       ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
-echo "🌐 LOCAL ACCESS: http://localhost:${PORT}"
+MUSIC=$(grep "^RECLMR_MUSIC_DIR=" .env 2>/dev/null | tail -n1 | cut -d= -f2)
+echo "   Open:       http://localhost:${PORT}"
+echo "   Passcode:   ${PIN:-set in .env}   (kept in ${APP_DIR}/.env)"
+echo "   Music:      ${MUSIC:-~/Music}   (put songs there: no other software needed)"
 if [ -n "$TUNNEL_URL" ]; then
-    echo "📱 TAILNET URL: $TUNNEL_URL"
-    echo "   PIN: ${PIN:-set in .env}"
-    echo ""
-    echo "⚠️  This tunnel URL changes every few hours. For permanent access:"
-    echo ""
-    echo "📌 SETUP PERMANENT TUNNEL (5 min):"
-    echo ""
-    echo "   1. Install cloudflared:"
-    if [ "$OS_TYPE" = "macos" ]; then
-        echo "      brew install cloudflared"
-    else
-        echo "      sudo apt install cloudflared  # or: sudo dnf install cloudflared"
-    fi
-    echo ""
-    echo "   2. Create a free Cloudflare account & tunnel:"
-    echo "      cloudflared tunnel login"
-    echo "      cloudflared tunnel create reclmr"
-    echo ""
-    echo "   3. Point a domain (yours or free subdomain):"
-    echo "      cloudflared tunnel route dns reclmr mydomain.com"
-    echo ""
-    echo "   4. Run the tunnel:"
-    echo "      cloudflared tunnel run reclmr"
-    echo ""
-    echo "   Result: https://reclmr.mydomain.com (permanent, never changes)"
-    echo ""
-    echo "🔐 ALTERNATIVE (Private-only access):"
-    echo "   Use Tailscale for permanent HTTPS from your own devices:"
-    echo "      sudo tailscale serve https / http://localhost:${PORT}"
-    echo ""
+    echo "   On your phone: $TUNNEL_URL"
+else
+    echo "   On your phone: not set up yet. It takes two minutes with Tailscale: see docs/SETUP.md"
 fi
 echo ""
 
-# Print PIN
-if [ -n "$PIN" ]; then
-    echo "🔐 Your access PIN: $PIN"
-    echo "   (Change it: nano ${APP_DIR}/.env)"
-    echo ""
-fi
-
-# QR code
+# QR code (phone)
 if [ -n "$TUNNEL_URL" ] && command -v qrencode &>/dev/null; then
-    echo "📱 Scan this QR code with your phone camera:"
+    echo "   Scan with your phone camera:"
     echo ""
     qrencode -t ANSIUTF8 "$TUNNEL_URL" 2>/dev/null || qrencode -t ANSI "$TUNNEL_URL" 2>/dev/null
     echo ""
-    echo "Or open manually: $TUNNEL_URL"
-    echo "PIN: $PIN"
+    echo "   Then 'Add to Home Screen' for an app-like icon (iPhone: Safari Share menu. Android: Chrome menu)."
     echo ""
-    echo "   Add to Home Screen for a native app experience:"
-    echo "   • iPhone: Safari → Share → Add to Home Screen"
-    echo "   • Android: Chrome → ⋮ → Add to Home screen"
-elif [ -n "$TUNNEL_URL" ]; then
-    echo "📱 Open on your phone: $TUNNEL_URL"
-    echo "   PIN: $PIN"
-    echo ""
-    echo "   Add to Home Screen for a native app experience:"
-    echo "   • iPhone: Safari → Share → Add to Home Screen"
-    echo "   • Android: Chrome → ⋮ → Add to Home screen"
-else
-    echo "📱 Install cloudflared for phone access:"
-    echo "   https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"
 fi
 
-echo ""
 echo "Manage reclmr:"
 echo "  ./reclmr status   — check what's running"
 echo "  ./reclmr qr       — show current tunnel URL + QR code"

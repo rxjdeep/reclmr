@@ -11,24 +11,33 @@
 
 </div>
 
+## Quickstart
+
+```bash
+git clone https://github.com/rxjdeep/reclmr.git
+cd reclmr && ./install.sh
+```
+
+Open **http://localhost:8899** and type the passcode the installer prints. That is the whole setup, about a minute.
+
+You need Linux or macOS and Python 3.10+. The installer asks one thing, where your music is. **Songs in that folder just play**: there is no media server to install.
+
+<details>
+<summary>Other ways to run it</summary>
+
+- **By hand, no background service:** `./install.sh --no-service`, then `.venv/bin/python app.py`.
+- **From your phone:** put [Tailscale](https://tailscale.com) in front of it, two minutes: [Setup](docs/SETUP.md#remote-access).
+- **Without questions** (scripts, CI): `./install.sh --yes`. Windows is experimental and untested.
+
+</details>
+
 ## What it is
 
 A self-hosted web app that turns the computer under your desk into a photo library, file manager, music player, audiobook reader and control panel. Open it from your phone or laptop. No accounts, no subscriptions, and your files stay on your machine.
 
-## Run it
-
-```bash
-git clone https://github.com/rxjdeep/reclmr.git ~/reclmr
-cd ~/reclmr && ./install.sh
-```
-
-It sets everything up, then prints your **passcode** and the address to open. You need Linux or macOS and Python 3.10+. For your phone, add [Tailscale](https://tailscale.com). Windows is experimental and untested.
-
-## What's inside
-
+- **Music:** plays straight from a folder of files. Playlists are plain `.m3u8` files, lyrics are synced (`.lrc` files or LRCLIB), and a quality setting saves mobile data. Already run Navidrome? Point reclmr at it instead ([how](docs/SETUP.md#navidrome-optional)).
 - **Gallery:** your camera roll and screenshots by day, with a full-screen viewer.
 - **Files:** a Finder-style browser with upload, search and a Trash.
-- **Music:** a player on top of [Navidrome](https://www.navidrome.org) with playlists, synced lyrics, two themes and a quality setting for mobile data.
 - **Audiobooks:** PDF, JSON and TXT books with a voice that reads along.
 - **AI:** chat through Ollama, images through ComfyUI, and a voice assistant.
 - **Terminal:** a real shell in the browser, locked behind an authenticator-app code.

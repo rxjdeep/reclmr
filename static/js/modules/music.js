@@ -1,6 +1,6 @@
 // ===== Module: music =====
 // Glossy-black media player. Metadata, covers, stars and play counts come from
-// Navidrome (via the server's Subsonic proxy); file tags are only a fallback.
+// the music folder itself (tags read on the server), or Navidrome when it is configured (via the server's Subsonic proxy).
 // Views: Albums · Artists · Songs · Genres · Favorites · Recently added ·
 // Most played · Playlists · Now Playing · Search - each is a #music/<view> route.
 // Globals other modules rely on: musicAudio, musicPlaylist, musicCurrentIdx,
