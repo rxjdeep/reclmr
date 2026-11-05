@@ -139,10 +139,11 @@ var mzSp = (function () {
   // ─── building blocks ───────────────────────────────────
   function card(o) {
     return '<div class="sp-cardx" data-act="sp-open" data-k="' + o.k + '" data-v="' + esc(o.v) + '">' +
-      '<div class="sp-cover">' + o.cover + '<button class="sp-cardplay" data-act="sp-playctx" data-k="' + o.k + '" data-v="' + esc(o.v) + '" aria-label="Play">' + I.play + '</button></div>' +
+      '<div class="sp-cover">' + o.cover + '<button class="sp-cardplay" data-act="sp-playctx" data-k="' + (o.pk || o.k) + '" data-v="' + esc(o.v) + '" aria-label="Play">' + I.play + '</button></div>' +
       '<div class="sp-ct">' + esc(o.title) + '</div><div class="sp-cs">' + esc(o.sub) + '</div></div>';
   }
   function albumCard(al) { return card({ k: 'album', v: al.id, cover: albumCov(al, 300), title: al.name, sub: (al.year ? al.year + ' • ' : '') + al.artist }); }
+  function trackCard(t) { return card({ k: 'song', pk: 'songs1', v: t.f, cover: trackCov(t, 300), title: t.t, sub: t.ar }); }
   function artistCard(a) { return card({ k: 'artist', v: a.id, cover: artistCov(a, 300), title: a.name, sub: 'Artist' }); }
   function plCard(p) { return card({ k: 'playlist', v: p.id, cover: plCov(p, 300), title: p.name, sub: 'By ' + ME }); }
   function mixCard(m) { return card({ k: 'mix', v: m.id, cover: mixCov(m, 300), title: m.title, sub: m.sub }); }
@@ -347,7 +348,7 @@ var mzSp = (function () {
     var topArt = Array.from(mz.artists.values()).filter(function (a) { return !/unknown/i.test(a.name) && a.tracks.length >= 3; })
       .sort(function (a, b) { return artistPlays(b) - artistPlays(a) || b.tracks.length - a.tracks.length; }).slice(0, 20);
     shelves += shelf('Your top artists', topArt.map(artistCard), 'artists');
-    shelves += shelf('Recently added', albumsArr().sort(function (a, b) { return b.added - a.added; }).slice(0, 20).map(albumCard), 'albums');
+    shelves += shelf('Recently added', musicPlaylist.slice().sort(function (a, b) { return b.a - a.a; }).slice(0, 20).map(trackCard), 'recent');
     shelves += shelf('Albums for you', mzShuffled(albumsArr().filter(function (a) { return a.tracks.length >= 4; })).slice(0, 20).map(albumCard), 'albums');
     shelves += shelf('Your playlists', mz.playlists.slice(0, 20).map(plCard));
     return { html: '<div class="sp-page sp-home" id="sp-page"><div class="sp-pbody"><div class="sp-mtop">' + AVATAR + '</div><h1 class="sp-greet">' + greet + '</h1>' + q + shelves + '</div></div>', hue: 150 + (h * 7) % 120 };
