@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.7.31"
+VERSION = "0.8.0"
 
 CHANGELOG = [
+    {
+        "version": "0.8.0",
+        "date": "2026-11-05",
+        "changes": [
+            "Playlists now work without Navidrome",
+            "Playlists are plain .m3u8 files in playlists/ (any other player can open them, a file dropped in shows up)",
+            "Create, rename, delete, add, remove, reorder and playlist pictures all work from the music folder alone",
+            "The 'Showing tags read from the files' notice is gone: reading the files is the normal way now",
+        ]
+    },
     {
         "version": "0.7.31",
         "date": "2026-11-04",

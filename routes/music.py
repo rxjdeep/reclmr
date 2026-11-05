@@ -19,6 +19,8 @@ import time
 import shared
 from shared import limiter
 
+from routes import playlists_local as _lp
+
 bp = Blueprint('music', __name__)
 
 # Cache directory for extracted + cropped artwork.
@@ -334,6 +336,15 @@ def _nd_library():
     return {'source': 'navidrome', 'tracks': tracks, 'playlists': playlists}
 
 
+def _file_playlists(tracks):
+    pls = _lp.listing({t['f']: t['d'] for t in tracks})
+    for p in pls:
+        f = _pl_cover_file(p['id'])
+        if f.exists():
+            p['c'] = 'pl-%s_%d' % (p['id'], int(f.stat().st_mtime))      # the picture the user gave it (served by music_artwork)
+    return pls
+
+
 def _file_library():
     with _index_lock:
         recs = _build_index()
@@ -351,7 +362,7 @@ def _file_library():
             'c': r['f'], 'p': r['f'], 'fav': r['f'] in favs, 'pc': n, 'lp': last,
             'br': 0, 'sx': r['f'].rsplit('.', 1)[-1],
         })
-    return {'source': 'files', 'tracks': tracks, 'playlists': []}
+    return {'source': 'files', 'tracks': tracks, 'playlists': _file_playlists(tracks)}
 
 
 def _library_data():
@@ -415,8 +426,10 @@ def music_playlist_create():
         return jsonify({'error': 'bad request'}), 400
     if not name or (ident and _bad_id(ident)):
         return jsonify({'error': 'bad request'}), 400
-    if not _nd_conf():
-        return jsonify({'error': 'Playlists need Navidrome'}), 400
+    if not _nd_conf():                                      # no Navidrome: a playlist is a .m3u8 file (routes/playlists_local.py)
+        pid = _lp.create(name, ids if ids else ([ident] if ident else []))
+        _invalidate()
+        return jsonify({'ok': True, 'id': pid, 'name': name})
     try:
         params = {'name': name}
         if ids:                                             # a whole list at once (used to bring back a deleted playlist)
@@ -437,7 +450,10 @@ def music_playlist_rename(pid):
     if _bad_id(pid) or not name:
         return jsonify({'error': 'bad request'}), 400
     if not _nd_conf():
-        return jsonify({'error': 'Playlists need Navidrome'}), 400
+        if not _lp.rename(pid, name):
+            return jsonify({'error': 'Playlist not found'}), 404
+        _invalidate()
+        return jsonify({'ok': True, 'name': name})
     try:
         _nd_get('updatePlaylist', playlistId=pid, name=name)
     except Exception as e:
@@ -452,7 +468,11 @@ def music_playlist_delete(pid):
     if _bad_id(pid):
         return jsonify({'error': 'bad request'}), 400
     if not _nd_conf():
-        return jsonify({'error': 'Playlists need Navidrome'}), 400
+        if not _lp.delete(pid):
+            return jsonify({'error': 'Playlist not found'}), 404
+        _pl_cover_clear(pid)
+        _invalidate()
+        return jsonify({'ok': True})
     try:
         _nd_get('deletePlaylist', id=pid)
     except Exception as e:
@@ -475,7 +495,11 @@ def music_playlist_add(pid):
     if _bad_id(pid) or _bad_id(ident) or (index is not None and (not isinstance(index, int) or isinstance(index, bool) or index < 0)):
         return jsonify({'error': 'bad id'}), 400
     if not _nd_conf():
-        return jsonify({'error': 'Playlists need Navidrome'}), 400
+        at, found = _lp.add(pid, ident, index)
+        if not found:
+            return jsonify({'error': 'Playlist or song not found'}), 404
+        _invalidate()
+        return jsonify({'ok': True, 'dup': True}) if at is None else jsonify({'ok': True, 'dup': False, 'index': at})
     try:
         cur = [e.get('id') for e in _pl_entries(pid)]
         if ident in cur:
@@ -499,7 +523,11 @@ def music_playlist_remove(pid):
     if _bad_id(pid) or _bad_id(ident):
         return jsonify({'error': 'bad id'}), 400
     if not _nd_conf():
-        return jsonify({'error': 'Playlists need Navidrome'}), 400
+        idx = _lp.remove(pid, ident)
+        if idx is None:
+            return jsonify({'error': 'Playlist not found'}), 404
+        _invalidate()
+        return jsonify({'ok': True, 'removed': len(idx), 'indices': idx})
     try:
         idx = [i for i, e in enumerate(_pl_entries(pid)) if e.get('id') == ident]
         if idx:
@@ -521,7 +549,13 @@ def music_playlist_order(pid):
             or not isinstance(base, int) or isinstance(base, bool)):
         return jsonify({'error': 'bad request'}), 400
     if not _nd_conf():
-        return jsonify({'error': 'Playlists need Navidrome'}), 400
+        res = _lp.set_order(pid, ids, base)
+        if res == 'missing':
+            return jsonify({'error': 'Playlist not found'}), 404
+        if res == 'stale':
+            return jsonify({'error': 'The playlist changed elsewhere', 'stale': True}), 409
+        _invalidate()
+        return jsonify({'ok': True})
     try:
         from collections import Counter
         cur = [e.get('id') for e in _pl_entries(pid)]
@@ -545,7 +579,7 @@ def music_membership():
     if _bad_id(ident):
         return jsonify({'error': 'bad id'}), 400
     if not _nd_conf():
-        return jsonify({'playlists': []})
+        return jsonify({'playlists': _lp.membership(ident)})
     try:
         pls = _nd_get('getPlaylists').get('playlists', {}).get('playlist', []) or []
         from concurrent.futures import ThreadPoolExecutor
@@ -560,7 +594,7 @@ def music_membership():
 def music_inplaylists():
     """Ids of every track that is in at least one playlist (for the tick on Now Playing)."""
     if not _nd_conf():
-        return jsonify({'ids': []})
+        return jsonify({'ids': _lp.in_any()})
     try:
         pls = _nd_get('getPlaylists').get('playlists', {}).get('playlist', []) or []
         from concurrent.futures import ThreadPoolExecutor
@@ -573,6 +607,11 @@ def music_inplaylists():
 
 @bp.route('/api/music/playlist/<pid>')
 def music_playlist(pid):
+    if not _nd_conf():
+        ids = _lp.entries(pid)
+        if ids is None:
+            return jsonify({'error': 'Playlist not found'}), 404
+        return jsonify({'ids': ids})
     try:
         entries = _nd_get('getPlaylist', id=pid).get('playlist', {}).get('entry', [])
         return jsonify({'ids': [e['id'] for e in entries if e.get('id')]})
@@ -996,6 +1035,14 @@ def music_artwork(ident):
             return resp
         size = min(1200, max(48, request.args.get('size', 300, type=int)))
         return _nd_proxy('getCoverArt', {'id': ident, 'size': size}, cache='private, max-age=300' if ident.startswith('ar-') else 'private, max-age=86400')
+    if ident.startswith('pl-'):                              # a playlist's own picture (no Navidrome: nothing else to fall back to)
+        own = _artist_art_file('pl_' + ident[3:].split('_')[0], 'avatar')
+        if own:
+            size = min(1200, max(48, request.args.get('size', 300, type=int)))
+            resp = send_file(str(_art_thumb(own, size)), mimetype='image/jpeg', conditional=True)
+            resp.headers['Cache-Control'] = 'private, no-cache'
+            return resp
+        return jsonify({'error': 'no picture'}), 404
     return _file_artwork(ident)
 
 
@@ -1300,10 +1347,13 @@ def _square_jpeg(data):
 @bp.route('/api/music/playlist/<pid>/cover', methods=['POST'])
 def music_playlist_cover(pid):
     """Give a playlist its own picture: an uploaded `file`, or `link` to an open.spotify.com/playlist page (its public picture is used)."""
-    if _bad_id(pid) or not _nd_conf():
+    if _bad_id(pid):
         return jsonify({'error': 'bad request'}), 400
     try:
-        _nd_get('getPlaylist', id=pid)                       # only for a playlist that exists
+        if _nd_conf():
+            _nd_get('getPlaylist', id=pid)                   # only for a playlist that exists
+        elif _lp.entries(pid) is None:
+            raise LookupError(pid)
     except Exception:
         return jsonify({'error': 'Playlist not found'}), 404
     try:

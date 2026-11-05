@@ -125,7 +125,7 @@ function mzArtistLinks(t, cls, act) {
 }
 function mzIngest(d) {
   mz.source = d.source || '';
-  mz.error = d.error || (d.source === 'files' ? 'Showing tags read from the files. Add RECLMR_NAVIDROME_USER and RECLMR_NAVIDROME_PASS to .env to use Navidrome metadata.' : '');
+  mz.error = d.error || '';                                      // reading the files is the normal way now, not something to apologise for
   musicPlaylist = d.tracks || [];
   mz.playlists = d.playlists || [];
   mz.byId = new Map(); mz.artists = new Map(); mz.albums = new Map(); mz.genres = new Map(); mz.plCache = {};

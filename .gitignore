@@ -91,3 +91,6 @@ audit.log.1
 # phone app build output (contains the server token)
 android/pusher/build/
 *.jks
+
+# music player data (playlists are .m3u8 files)
+playlists/
