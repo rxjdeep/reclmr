@@ -8,9 +8,18 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.6"
+VERSION = "0.8.7"
 
 CHANGELOG = [
+    {
+        "version": "0.8.7",
+        "date": "2026-11-07",
+        "changes": [
+            "Search and Genres see every genre tag",
+            "Songs keep all their genre tags (Navidrome genres list), not just the first",
+            "Search matches any of them and each genre lists its songs",
+        ]
+    },
     {
         "version": "0.8.6",
         "date": "2026-11-07",

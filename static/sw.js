@@ -1,5 +1,5 @@
 // reclmr Service Worker
-const CACHE_NAME = 'reclmr-v345';
+const CACHE_NAME = 'reclmr-v346';
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // activate immediately

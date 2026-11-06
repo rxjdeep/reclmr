@@ -414,6 +414,9 @@ def _nd_song(s):
         'lp': _epoch(s.get('played')), 'br': s.get('bitRate') or 0, 'sx': s.get('suffix') or '',
         'sr': s.get('samplingRate') or 0, 'bd': s.get('bitDepth') or 0, 'sz': s.get('size') or 0, 'ch': s.get('channelCount') or 0,
     }
+    gs = [g['name'] for g in (s.get('genres') or []) if g.get('name')]
+    if len(gs) > 1:
+        d['gs'] = gs                                         # every genre tag, so search and the Genres list see more than the first
     if s.get('explicitStatus') == 'explicit':
         d['ex'] = 1                                          # the E badge
     co = [[c['artist']['id'], c['artist']['name'], str(c.get('role') or '')] for c in (s.get('contributors') or [])

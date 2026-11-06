@@ -130,7 +130,7 @@ function mzIngest(d) {
   mz.playlists = d.playlists || [];
   mz.byId = new Map(); mz.artists = new Map(); mz.albums = new Map(); mz.genres = new Map(); mz.plCache = {};
   musicPlaylist.forEach(function (t, i) {
-    t.i = i; t.h = mzHue(t.ar); t.k = (t.t + ' ' + t.ar + ' ' + t.al + ' ' + t.g).toLowerCase();
+    t.i = i; t.h = mzHue(t.ar); t.k = (t.t + ' ' + t.ar + ' ' + t.al + ' ' + (t.gs || [t.g]).join(' ')).toLowerCase();
     mz.byId.set(t.f, t);
     var al = null;
     if (t.li) {
@@ -147,7 +147,7 @@ function mzIngest(d) {
       a.tracks.push(t);
       if (al) a.albums.add(al);
     });
-    if (t.g) { var g = mz.genres.get(t.g); if (!g) { g = []; mz.genres.set(t.g, g); } g.push(t); }
+    (t.gs || (t.g ? [t.g] : [])).forEach(function (n) { var g = mz.genres.get(n); if (!g) { g = []; mz.genres.set(n, g); } g.push(t); });
   });
   mz.albums.forEach(function (al) {
     al.tracks.sort(function (x, y) { return (x.dn - y.dn) || ((x.n || 999) - (y.n || 999)) || x.t.localeCompare(y.t); });
