@@ -2150,6 +2150,7 @@ var mzSp = (function () {
         if (sc && sc.scrollTop > 0) { td = null; return; }                                               // scrolled down: this is a scroll
         if (dy < 10 || Math.abs(dy) < Math.abs(dx) * 1.2) { if (dy < -4) td = null; return; }           // up or sideways is not a pull-down
         td.v = dy / Math.max(16, performance.now() - td.t0); td.drag = true; td.y = f.clientY - 10; dy = 10;
+        if (sc) sc.style.overflowY = 'hidden';                                                           // the finger now moves the sheet: the content must not scroll along when it turns back up (put back in tEnd)
         clearTimeout(npHideT);
       }
       var now = performance.now(); td.v = 0.6 * td.v + 0.4 * ((f.clientY - td.last.y) / Math.max(1, now - td.last.t)); td.last = { y: f.clientY, t: now };
