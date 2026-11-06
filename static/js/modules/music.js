@@ -18,7 +18,7 @@ var mz = {
   queue: [], origQueue: null, qi: -1, shuffle: false, repeat: 'off',
   counted: false, seeking: false,
   ac: null, an: null, fdata: null, tdata: null, vizRaf: 0, peaks: [],
-  prefs: { vol: 1, muted: false, haptics: true, coverOpen: false, viz: !/iPad|iPhone|iPod/.test(navigator.userAgent), sideW: { glossy: 232, spotify: 320 }, queueW: 290, barH: 90, recents: [] },
+  prefs: { vol: 1, muted: false, haptics: true, coverOpen: false, viz: !/iPad|iPhone|iPod/.test(navigator.userAgent), sideW: { glossy: 232, spotify: 320 }, queueW: 290, barH: 90, recents: [], searches: [] },
   coarse: !!(window.matchMedia && matchMedia('(pointer: coarse)').matches),
 };
 try {
@@ -1658,6 +1658,12 @@ function mzOpenMenu(x, y, id, fromQueue, qIdx) {
 }
 
 // ─── search ──────────────────────────────────────────────
+// the words you searched for, newest first; a search counts once you press Enter or open a result
+function mzSearchRemember(q) {
+  q = (q || '').trim(); if (!q) return;
+  var l = (Array.isArray(mz.prefs.searches) ? mz.prefs.searches : []).filter(function (x) { return x.toLowerCase() !== q.toLowerCase(); });
+  l.unshift(q); mz.prefs.searches = l.slice(0, 12); mzSavePrefs();
+}
 function mzSearch(v) {
   clearTimeout(mz.searchTimer);
   mz.searchTimer = setTimeout(function () {

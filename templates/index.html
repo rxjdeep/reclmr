@@ -10,9 +10,9 @@
   <meta name="theme-color" content="#0a0a0f">
   <link rel="manifest" href="/static/manifest.json">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/css/app.css?v=344">
-  <link rel="stylesheet" href="/static/css/onboarding.css?v=344">
-  <link rel="stylesheet" href="/static/css/gallery.css?v=344">
+  <link rel="stylesheet" href="/static/css/app.css?v=345">
+  <link rel="stylesheet" href="/static/css/onboarding.css?v=345">
+  <link rel="stylesheet" href="/static/css/gallery.css?v=345">
   <link rel="stylesheet" href="/static/vendor/xterm/xterm.min.css">
   <title>Project Recl/\mr</title>
 </head>
@@ -107,7 +107,7 @@
       <div class="wm-crumb" id="wm-crumb">Library</div>
       <div class="wm-topc">
         <button class="sp-homebtn" onclick="mzGo('home')" aria-label="Home" title="Home"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33zm-2-1.732a3 3 0 0 1 3 0l7.5 4.33a2 2 0 0 1 1 1.732V21a1 1 0 0 1-1 1h-6.5a1 1 0 0 1-1-1v-6h-3v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7.577a2 2 0 0 1 1-1.732l7.5-4.33z"/></svg></button>
-        <div class="wm-search"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input type="search" id="wm-search-input" placeholder="Search" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="mzSearch(this.value)" onfocus="mzSearchFocus()"></div>
+        <div class="wm-search"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><input type="search" id="wm-search-input" placeholder="Search" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="mzSearch(this.value)" onkeydown="if(event.key==='Enter')mzSearchRemember(this.value)" onfocus="mzSearchFocus()"></div>
         <button class="wm-orb wm-home" onclick="goHome()" aria-label="Back to the recl/\mr home screen" title="Back to the recl/\mr home screen"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg><span class="lbl">recl/\mr</span></button>
       </div>
       <button class="wm-orb wm-helpbtn" id="wm-helpbtn" onclick="mzToggleHelp(event)" aria-label="How to use this player" title="How to use this player" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.2-2.5 3.9"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg><span class="lbl">Help</span></button>
@@ -1312,37 +1312,37 @@
   </div>
 </div>
 
-<script src="/static/js/thinking-orbs.js?v=344"></script>
-<script src="/static/js/modules/auth.js?v=344"></script>
-<script src="/static/js/modules/onboarding.js?v=344"></script>
-<script src="/static/js/modules/core.js?v=344"></script>
-<script src="/static/js/modules/nav.js?v=344"></script>
-<script src="/static/js/modules/media-session.js?v=344"></script>
-<script src="/static/js/modules/home.js?v=344"></script>
- <script src="/static/js/modules/liquid.js?v=344"></script>
- <script src="/static/js/modules/musicgen.js?v=344"></script>
- <script src="/static/js/modules/models.js?v=344"></script>
-<script src="/static/js/modules/projects.js?v=344"></script>
-<script src="/static/js/modules/audiobooks.js?v=344"></script>
-<script src="/static/js/modules/ui-kit.js?v=344"></script>
-<script src="/static/js/modules/gallery.js?v=344"></script>
-<script src="/static/js/modules/lego.js?v=344"></script>
-<script src="/static/js/modules/logs.js?v=344"></script>
-<script src="/static/js/modules/terminal.js?v=344"></script>
-<script src="/static/js/modules/osint.js?v=344"></script>
-<script src="/static/js/modules/universe.js?v=344"></script>
-<script src="/static/js/modules/system.js?v=344"></script>
-<script src="/static/js/modules/ollama.js?v=344"></script>
-<script src="/static/js/modules/comfy.js?v=344"></script>
-<script src="/static/js/modules/lego3d.js?v=344"></script>
-<script src="/static/js/modules/voice.js?v=344"></script>
-<script src="/static/js/modules/journal.js?v=344"></script>
-<script src="/static/js/modules/legos3d.js?v=344"></script>
-<script src="/static/js/modules/settings.js?v=344"></script>
-<script src="/static/js/modules/telemetry.js?v=344"></script>
-<script src="/static/js/modules/desktop.js?v=344"></script>
-<script src="/static/js/modules/music.js?v=344"></script>
-<script src="/static/js/modules/music-spotify.js?v=344"></script>
+<script src="/static/js/thinking-orbs.js?v=345"></script>
+<script src="/static/js/modules/auth.js?v=345"></script>
+<script src="/static/js/modules/onboarding.js?v=345"></script>
+<script src="/static/js/modules/core.js?v=345"></script>
+<script src="/static/js/modules/nav.js?v=345"></script>
+<script src="/static/js/modules/media-session.js?v=345"></script>
+<script src="/static/js/modules/home.js?v=345"></script>
+ <script src="/static/js/modules/liquid.js?v=345"></script>
+ <script src="/static/js/modules/musicgen.js?v=345"></script>
+ <script src="/static/js/modules/models.js?v=345"></script>
+<script src="/static/js/modules/projects.js?v=345"></script>
+<script src="/static/js/modules/audiobooks.js?v=345"></script>
+<script src="/static/js/modules/ui-kit.js?v=345"></script>
+<script src="/static/js/modules/gallery.js?v=345"></script>
+<script src="/static/js/modules/lego.js?v=345"></script>
+<script src="/static/js/modules/logs.js?v=345"></script>
+<script src="/static/js/modules/terminal.js?v=345"></script>
+<script src="/static/js/modules/osint.js?v=345"></script>
+<script src="/static/js/modules/universe.js?v=345"></script>
+<script src="/static/js/modules/system.js?v=345"></script>
+<script src="/static/js/modules/ollama.js?v=345"></script>
+<script src="/static/js/modules/comfy.js?v=345"></script>
+<script src="/static/js/modules/lego3d.js?v=345"></script>
+<script src="/static/js/modules/voice.js?v=345"></script>
+<script src="/static/js/modules/journal.js?v=345"></script>
+<script src="/static/js/modules/legos3d.js?v=345"></script>
+<script src="/static/js/modules/settings.js?v=345"></script>
+<script src="/static/js/modules/telemetry.js?v=345"></script>
+<script src="/static/js/modules/desktop.js?v=345"></script>
+<script src="/static/js/modules/music.js?v=345"></script>
+<script src="/static/js/modules/music-spotify.js?v=345"></script>
 
 <!-- ═══ ONBOARDING OVERLAY ═══ -->
 <div id="onboarding-overlay" class="onboarding-overlay" style="display:none">

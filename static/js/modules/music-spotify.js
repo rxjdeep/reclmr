@@ -370,6 +370,16 @@ var mzSp = (function () {
     if (k === 'song') { var t = mz.byId.get(v); if (!t) return null; return { cov: trackCov(t, 112), title: t.t, sub: (t.ex ? EB + ' ' : '') + 'Song • ' + esc(t.ar), on: !!cur && cur.f === v }; }
     return null;
   }
+  // Search history: the words you searched for (kept in prefs like the recents above), newest first
+  function searches() { return Array.isArray(mz.prefs.searches) ? mz.prefs.searches : []; }
+  var H_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>';
+  function historyHtml() {
+    var l = searches(); if (!l.length) return '';
+    return '<h2>Recent searches</h2>' + l.map(function (q) {
+      return '<div class="sp-rec" data-act="sp-hist" data-v="' + esc(q) + '"><span class="sp-rimg">' + H_ICON + '</span><span class="sp-rtx"><b>' + esc(q) + '</b></span>' +
+        '<button class="sp-rx" data-act="sp-histx" data-v="' + esc(q) + '" aria-label="Remove from search history">' + X_ICON + '</button></div>';
+    }).join('') + '<button class="sp-showmore" data-act="sp-histclear">Clear search history</button>';
+  }
   function recentsView() {
     var rows = recents().map(function (r) {
       var it = recentItem(r); if (!it) return '';
@@ -377,7 +387,7 @@ var mzSp = (function () {
         '<span class="sp-rtx"><b' + (it.on ? ' class="on"' : '') + '>' + esc(it.title) + '</b><i>' + it.sub + '</i></span>' +
         '<button class="sp-rx" data-act="sp-recx" data-k="' + esc(r[0]) + '" data-v="' + esc(r[1]) + '" aria-label="Remove from recents">' + X_ICON + '</button></div>';
     }).join('');
-    return { html: '<div class="sp-page"><div class="sp-pbody sp-recs">' + (rows ? '<h2>Recents</h2>' + rows :
+    return { html: '<div class="sp-page"><div class="sp-pbody sp-recs">' + historyHtml() + (rows ? '<h2>Recents</h2>' + rows :
       '<div class="sp-empty"><h2>Play what you love</h2><p>Search for songs, artists, albums and playlists.</p></div>') + '</div></div>', hue: 220 };
   }
   SP.sf = false;                                      // phone: the search field is active (back arrow, Recents)
@@ -406,7 +416,7 @@ var mzSp = (function () {
       var base = [['Liked Songs', 'liked', ''], ['Recently Added', 'view', 'recent'], ['Most Played', 'view', 'played'], ['All Songs', 'songs', ''], ['Artists', 'view', 'artists'], ['Albums', 'view', 'albums']];
       base.forEach(function (b) { tiles.push({ title: b[0], k: b[1], v: b[2], t: null }); });
       gs.forEach(function (g) { tiles.push({ title: g[0], k: 'genre', v: g[0], t: g[1].filter(function (x) { return x.c; })[0] }); });
-      return { html: '<div class="sp-page"><div class="sp-pbody"><h2 class="sp-browse">Browse all</h2><div class="sp-tiles">' + tiles.map(function (t) {
+      return { html: '<div class="sp-page"><div class="sp-pbody">' + (searches().length ? '<div class="sp-recs sp-hist">' + historyHtml() + '</div>' : '') + '<h2 class="sp-browse">Browse all</h2><div class="sp-tiles">' + tiles.map(function (t) {
         return '<div class="sp-tile" style="--h:' + mzHue(t.title) + '" data-act="sp-open" data-k="' + t.k + '" data-v="' + esc(t.v) + '"><b>' + esc(t.title) + '</b>' +
           (t.t ? '<img loading="lazy" alt="" src="' + esc(mzCoverUrl(t.t.c, 160)) + '" onerror="this.remove()">' : '') + '</div>';
       }).join('') + '</div></div></div>', hue: 220 };
@@ -417,10 +427,11 @@ var mzSp = (function () {
     var arts = Array.from(mz.artists.values()).filter(function (a) { return hit(a.name.toLowerCase()); }).sort(function (a, b) { return b.tracks.length - a.tracks.length; });
     var albs = albumsArr().filter(function (a) { return hit((a.name + ' ' + a.artist).toLowerCase()); });
     var pls = mz.playlists.filter(function (p) { return hit((p.name || '').toLowerCase()); });
-    if (!songs.length && !arts.length && !albs.length && !pls.length) return { html: '<div class="sp-page"><div class="sp-pbody"><div class="sp-empty"><h2>No results found for “' + esc(mz.query) + '”</h2><p>Please make sure your words are spelled correctly, or use fewer or different keywords.</p></div></div></div>', hue: 220 };
+    var gens = Array.from(mz.genres.entries()).filter(function (g) { return hit(g[0].toLowerCase()); }).sort(function (a, b) { return b[1].length - a[1].length; });
+    if (!songs.length && !arts.length && !albs.length && !pls.length && !gens.length) return { html: '<div class="sp-page"><div class="sp-pbody"><div class="sp-empty"><h2>No results found for “' + esc(mz.query) + '”</h2><p>Please make sure your words are spelled correctly, or use fewer or different keywords.</p></div></div></div>', hue: 220 };
 
     // one chip per kind of result (with how many), so each full list is one tap away
-    var kinds = [['songs', 'Songs', songs.length], ['artists', 'Artists', arts.length], ['albums', 'Albums', albs.length], ['playlists', 'Playlists', pls.length]].filter(function (k) { return k[2]; });
+    var kinds = [['songs', 'Songs', songs.length], ['artists', 'Artists', arts.length], ['albums', 'Albums', albs.length], ['playlists', 'Playlists', pls.length], ['genres', 'Genres', gens.length]].filter(function (k) { return k[2]; });
     if (srTab && !kinds.some(function (k) { return k[0] === srTab; })) srTab = '';          // that kind has no matches for this search
     var chips = '<div class="sp-chips sp-schips"><button class="sp-chip' + (srTab ? '' : ' on') + '" data-act="sp-stab" data-v="">All</button>' + kinds.map(function (k) {
       return '<button class="sp-chip' + (srTab === k[0] ? ' on' : '') + '" data-act="sp-stab" data-v="' + k[0] + '">' + k[1] + ' <span class="n">' + k[2] + '</span></button>';
@@ -433,6 +444,7 @@ var mzSp = (function () {
     }
     if (srTab === 'artists') return { html: '<div class="sp-page"><div class="sp-pbody">' + chips + '<h2 class="sp-h2">Artists</h2><div class="sp-grid">' + arts.slice(0, CAP).map(artistCard).join('') + '</div>' + capNote(arts.length) + '</div></div>', hue: 220 };
     if (srTab === 'albums') return { html: '<div class="sp-page"><div class="sp-pbody">' + chips + '<h2 class="sp-h2">Albums</h2><div class="sp-grid">' + albs.slice(0, CAP).map(albumCard).join('') + '</div>' + capNote(albs.length) + '</div></div>', hue: 220 };
+    if (srTab === 'genres') return { html: '<div class="sp-page"><div class="sp-pbody">' + chips + '<h2 class="sp-h2">Genres</h2>' + genreTiles(gens) + '</div></div>', hue: 220 };
     if (srTab === 'playlists') return { html: '<div class="sp-page"><div class="sp-pbody">' + chips + '<h2 class="sp-h2">Playlists</h2><div class="sp-grid">' + pls.map(plCard).join('') + '</div></div></div>', hue: 220 };
 
     // All: the best match, a taste of each kind, and the headers (or Show all) open the full list
@@ -451,6 +463,7 @@ var mzSp = (function () {
     var out = '<div class="sp-page"><div class="sp-pbody">' + chips + '<div class="sp-sr"><div><h2>Top result</h2>' + topHtml + '</div>' + songsBlock + '</div>';
     out += shelf('Artists', arts.slice(0, 12).map(artistCard), null, 'artists', arts.length) + shelf('Albums', albs.slice(0, 12).map(albumCard), null, 'albums', albs.length) +
       shelf('Playlists', pls.slice(0, 12).map(plCard), null, 'playlists', pls.length);
+    if (gens.length) out += '<section class="sp-shelf"><div class="sp-shelf-h"><h2><a class="sp-sh" data-act="sp-stab" data-v="genres">Genres</a></h2></div>' + genreTiles(gens.slice(0, 12)) + '</section>';
     return { html: out + '</div></div>', hue: 220 };
   }
   function capNote2(n, cap) { return n > cap ? '<p class="sp-capnote">Showing the first ' + cap + ' of ' + n + '. Search for something more specific to narrow it down.</p>' : ''; }
@@ -514,12 +527,15 @@ var mzSp = (function () {
     }
     return missing();
   }
-  function searchViewGenres() {
-    var gs = Array.from(mz.genres.entries()).sort(function (a, b) { return b[1].length - a[1].length; });
-    return { html: '<div class="sp-page"><div class="sp-pbody"><h1 class="sp-gridtitle">Genres</h1><div class="sp-tiles">' + gs.map(function (g) {
+  function genreTiles(gs) {
+    return '<div class="sp-tiles">' + gs.map(function (g) {
       var f = g[1].filter(function (x) { return x.c; })[0];
       return '<div class="sp-tile" style="--h:' + mzHue(g[0]) + '" data-act="sp-open" data-k="genre" data-v="' + esc(g[0]) + '"><b>' + esc(g[0]) + '</b>' + (f ? '<img loading="lazy" alt="" src="' + esc(mzCoverUrl(f.c, 160)) + '" onerror="this.remove()">' : '') + '</div>';
-    }).join('') + '</div></div></div>', hue: 230 };
+    }).join('') + '</div>';
+  }
+  function searchViewGenres() {
+    var gs = Array.from(mz.genres.entries()).sort(function (a, b) { return b[1].length - a[1].length; });
+    return { html: '<div class="sp-page"><div class="sp-pbody"><h1 class="sp-gridtitle">Genres</h1>' + genreTiles(gs) + '</div></div>', hue: 230 };
   }
   function missing() { return { html: '<div class="sp-page"><div class="sp-pbody"><div class="sp-empty"><h2>Couldn\'t find that page</h2><p>It may have been removed from your library.</p></div></div></div>', hue: 230 }; }
 
@@ -727,7 +743,11 @@ var mzSp = (function () {
       }
       case 'sp-more': { e.stopPropagation(); var rr = el.getBoundingClientRect(); mzOpenMenu(rr.left, rr.bottom, el.dataset.t, false, null); break; }
       case 'sp-recx': { e.stopPropagation(); mz.prefs.recents = recents().filter(function (r) { return !(r[0] === k && r[1] === v); }); mzSavePrefs(); mzHaptic('tick'); mzRender(); break; }
+      case 'sp-hist': { var si = mzEl('wm-search-input'); if (si) si.value = v; mz.query = v; mzSearchRemember(v); mzRender(); var sc2 = mzEl('wm-content'); if (sc2) sc2.scrollTop = 0; break; }
+      case 'sp-histx': e.stopPropagation(); mz.prefs.searches = searches().filter(function (q) { return q !== v; }); mzSavePrefs(); mzHaptic('tick'); mzRender(); break;
+      case 'sp-histclear': mz.prefs.searches = []; mzSavePrefs(); mzRender(); break;
       case 'sp-lib': case 'sp-open':
+        if (mz.view.type === 'search') mzSearchRemember(mz.query);
         if (mz.view.type === 'search' && (k === 'album' || k === 'artist' || k === 'playlist' || k === 'song')) addRecent(k, v);
         if (k === 'song') { var t = mz.byId.get(v); if (t) mzPlayList([t], 0); } else openTarget(k, v);
         break;
