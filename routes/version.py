@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.8"
+VERSION = "0.8.9"
 
 CHANGELOG = [
+    {
+        "version": "0.8.9",
+        "date": "2026-11-07",
+        "changes": [
+            "Now Playing swipe-down really stops the content scrolling",
+            "The pull-down can now cancel the browser's scroll before it starts (it was passive, and a scroll already begun cannot be stopped), so turning back up mid-pull no longer scrolls the cards",
+        ]
+    },
     {
         "version": "0.8.8",
         "date": "2026-11-07",

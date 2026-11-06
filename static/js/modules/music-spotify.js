@@ -2148,16 +2148,17 @@ var mzSp = (function () {
       if (!td.drag) {
         if (td.tgt.closest && td.tgt.closest('input[type=range]')) { td = null; return; }                // the seek bar is dragged sideways: leave it alone
         if (sc && sc.scrollTop > 0) { td = null; return; }                                               // scrolled down: this is a scroll
-        if (dy < 10 || Math.abs(dy) < Math.abs(dx) * 1.2) { if (dy < -4) td = null; return; }           // up or sideways is not a pull-down
-        td.v = dy / Math.max(16, performance.now() - td.t0); td.drag = true; td.y = f.clientY - 10; dy = 10;
-        if (sc) sc.style.overflowY = 'hidden';                                                           // the finger now moves the sheet: the content must not scroll along when it turns back up (put back in tEnd)
+        if (dy < 6 || Math.abs(dy) < Math.abs(dx) * 1.2) { if (dy < -4) td = null; return; }             // up or sideways is not a pull-down (6 px: before the browser's own scroll starts, so this move can still be cancelled)
+        td.v = dy / Math.max(16, performance.now() - td.t0); td.drag = true; td.y = f.clientY - 6; dy = 6;
+        if (sc) sc.style.overflowY = 'hidden';
         clearTimeout(npHideT);
       }
+      if (e.cancelable) e.preventDefault();                                                              // the finger moves the sheet and nothing else: a scroll the browser already started cannot be stopped, so it must never start (turning back up mid-pull used to scroll the content)
       var now = performance.now(); td.v = 0.6 * td.v + 0.4 * ((f.clientY - td.last.y) / Math.max(1, now - td.last.t)); td.last = { y: f.clientY, t: now };
       var pos = Math.min(td.H, Math.max(0, td.base + dy));
       var past = pos > td.H * 0.18; if (past !== td.past) { td.past = past; mzHaptic('detent'); }      // a small buzz as you cross the point of no return
       dragY(pos);
-    }, { passive: true });          // passive: the page is at its top and contained, so there is nothing to scroll, and the browser need not wait for this code before it moves on
+    }, { passive: false });         // not passive: a pull must be able to cancel the browser's scroll (the browser only waits for this code until a scroll has begun)
     function tEnd(e) {
       if (sc) sc.style.overflowY = '';
       if (!td || !td.drag) { td = null; return; }
