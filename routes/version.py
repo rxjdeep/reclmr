@@ -8,9 +8,18 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.12"
+VERSION = "0.8.13"
 
 CHANGELOG = [
+    {
+        "version": "0.8.13",
+        "date": "2026-11-08",
+        "changes": [
+            "App reloads itself when a newer version is available",
+            "When the page returns to the foreground (and every 5 minutes) it checks for a newer version and reloads, unless music is playing or a playlist edit is open",
+            "The Android app no longer keeps showing an old version until force-stopped",
+        ]
+    },
     {
         "version": "0.8.12",
         "date": "2026-11-08",

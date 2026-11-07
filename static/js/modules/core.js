@@ -273,3 +273,26 @@ const PROJECTS = [
 
 // ─── Agents ───────────────────────────────────────────────
 let agentDetailsOpen = {};
+
+// The Android app keeps one page loaded for days, so a new version never showed up until the app was killed. When the page comes back to the
+// foreground (and every few minutes), ask the server which file version the page should be running; if it is newer, reload once it is safe:
+// nothing playing and no playlist edit open. (Playback or edits wait for a later check.)
+(function () {
+  var link = document.querySelector('link[href*="/static/css/app.css"]'), mine = link && (link.getAttribute('href').match(/[?&]v=(\d+)/) || [])[1], busy = false;
+  if (!mine) return;
+  function safe() {
+    var playing = typeof musicAudio !== 'undefined' && musicAudio && !musicAudio.paused;
+    return !playing && !document.querySelector('.sp-rmbtn');
+  }
+  function check() {
+    if (busy || document.hidden) return;
+    busy = true;
+    fetch('/', { cache: 'no-store', credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (h) {
+      var m = h.match(/\/static\/css\/app\.css\?v=(\d+)/);
+      busy = false;
+      if (m && m[1] !== mine && safe()) location.reload();
+    }).catch(function () { busy = false; });
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) setTimeout(check, 1500); });
+  setInterval(check, 5 * 60 * 1000);
+})();
