@@ -6694,7 +6694,7 @@ body.desktop-mode #music-screen { max-width: none; margin: 0; }
 .wm[data-mzt="spotify"] .sp-row.moving { transition: transform .16s ease; }
 .wm[data-mzt="spotify"] .sp-row.dragging { transition: none; position: relative; z-index: 5; background: #3a3a3a; box-shadow: 0 8px 24px rgba(0,0,0,.6); border-radius: 6px; }
 .wm[data-mzt="spotify"] .sp-row.dragging .sp-grip { color: var(--sp-green); }
-.wm[data-mzt="spotify"] .wm-content.reordering { user-select: none; -webkit-user-select: none; }
+.wm[data-mzt="spotify"] .wm-content.reordering { user-select: none; -webkit-user-select: none; touch-action: none; }
 .wm[data-mzt="spotify"] .sp-row.moving, .wm[data-mzt="spotify"] .sp-row.dragging { content-visibility: visible; }
 
 /* ═══ MUSIC - Spotify phone: playlist edit mode (pencil → Cancel / Done bar, minus + drag handle on each row) ═══ */

@@ -1818,8 +1818,13 @@ var mzSp = (function () {
   (function () {
     var D = null;
     function content() { return mzEl('wm-content'); }
+    // a second finger swipes the list while the first one holds the row (like paging the home screen while holding an app)
     function move(e) {
       if (!D) return;
+      if (e.pointerId !== undefined && D.f2 && e.pointerId === D.f2.id) {
+        var c2 = content(); c2.scrollTop += (D.f2.y - e.clientY) * 2.5; D.f2.y = e.clientY; move({ clientY: D.cy, pointerId: D.pid }); return;
+      }
+      if (e.pointerId !== undefined && e.pointerId !== D.pid) return;
       D.cy = e.clientY;
       var y = D.cy - D.sy + (content().scrollTop - D.scroll0);
       if (!D.sel) D.row.style.transform = 'translateY(' + y + 'px)'; dragLayout(D, y);
@@ -1834,6 +1839,8 @@ var mzSp = (function () {
     }
     function end(e) {
       if (!D) return;
+      if (D.f2 && e.pointerId === D.f2.id) { D.f2 = null; return; }       // the helper finger lifted; the held row stays in hand
+      if (e.pointerId !== undefined && e.pointerId !== D.pid) return;
       var d = D; D = null; cancelAnimationFrame(d.raf);
       document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', end);
       d.rows.forEach(function (r) { r.style.transform = ''; r.style.transition = ''; r.classList.remove('moving'); });
@@ -1850,11 +1857,12 @@ var mzSp = (function () {
       edit.draft = next; mzHaptic('tick'); mzRender();
     }
     document.addEventListener('pointerdown', function (e) {
+      if (D && !D.f2 && e.pointerId !== D.pid && e.pointerType === 'touch') { D.f2 = { id: e.pointerId, y: e.clientY }; e.preventDefault(); e.stopPropagation(); return; }
       var g = e.target.closest && e.target.closest('.sp-grip'); if (!g || D) return;
       var row = g.closest('.sp-row'), list = row && row.parentElement; if (!row || !list || !edit || mz.view.type !== 'playlist') return;
       e.preventDefault(); e.stopPropagation();
       var rows = Array.prototype.slice.call(list.querySelectorAll('.sp-row.trk')), from = rows.indexOf(row); if (from < 0) return;
-      D = { row: row, rows: rows, ids: rows.map(function (r) { return r.dataset.t; }), from: from, to: from, h: row.offsetHeight, top0: from * row.offsetHeight, sy: e.clientY, cy: e.clientY, scroll0: content().scrollTop, raf: 0 };
+      D = { row: row, rows: rows, ids: rows.map(function (r) { return r.dataset.t; }), from: from, to: from, h: row.offsetHeight, top0: from * row.offsetHeight, pid: e.pointerId, sy: e.clientY, cy: e.clientY, scroll0: content().scrollTop, raf: 0 };
       if (edit.sel.size > 1 && edit.sel.has(D.ids[from])) D.sel = edit.sel;
       rows.forEach(function (r) { r.classList.add('moving'); if (D.sel && D.sel.has(r.dataset.t)) r.classList.add('dragging'); });
       row.classList.add('dragging'); content().classList.add('reordering'); mzHaptic('tick');
@@ -1901,8 +1909,13 @@ var mzSp = (function () {
   (function () {
     var P = null, D = null, swallow = 0;
     function content() { return mzEl('wm-content'); }
+    // a second finger swipes the list while the first one holds the row (like paging the home screen while holding an app)
     function move(e) {
       if (!D) return;
+      if (e.pointerId !== undefined && D.f2 && e.pointerId === D.f2.id) {
+        var c2 = content(); c2.scrollTop += (D.f2.y - e.clientY) * 2.5; D.f2.y = e.clientY; move({ clientY: D.cy, pointerId: D.pid }); return;
+      }
+      if (e.pointerId !== undefined && e.pointerId !== D.pid) return;
       D.cy = e.clientY;
       var y = D.cy - D.sy + (content().scrollTop - D.scroll0);
       if (!D.sel) D.row.style.transform = 'translateY(' + y + 'px)'; dragLayout(D, y);
