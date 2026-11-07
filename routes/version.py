@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.11"
+VERSION = "0.8.12"
 
 CHANGELOG = [
+    {
+        "version": "0.8.12",
+        "date": "2026-11-08",
+        "changes": [
+            "Playlist reorder: second finger via touch events",
+            "The helper finger that scrolls the list while a row is held is now tracked with touch events, so it works wherever it lands and never scrolls the page",
+        ]
+    },
     {
         "version": "0.8.11",
         "date": "2026-11-08",
