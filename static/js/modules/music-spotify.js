@@ -1208,7 +1208,7 @@ var mzSp = (function () {
     }
     off();
     if (t.f in lyrCache) { show(lyrCache[t.f]); return; }
-    fetch('/api/music/lyrics/' + encodeURIComponent(t.f)).then(function (r) { return r.json(); }).then(function (d) { lyrCache[t.f] = d; show(d); }).catch(function () {});
+    fetch('/api/music/lyrics/' + encodeURIComponent(t.f)).then(function (r) { return r.json(); }).then(function (d) { if (d && d.lines && d.lines.length) lyrCache[t.f] = d; show(d); }).catch(function () {});
   }
   function lyrSync(force) {
     if (!lyr || !lyr.synced) return;
@@ -1255,7 +1255,7 @@ var mzSp = (function () {
       lyrSync(true);
     }
     if (t.f in lyrCache) { show(lyrCache[t.f]); return; }
-    fetch('/api/music/lyrics/' + encodeURIComponent(t.f)).then(function (r) { return r.json(); }).then(function (d) { lyrCache[t.f] = d; show(d); }).catch(function () { show(null); });
+    fetch('/api/music/lyrics/' + encodeURIComponent(t.f)).then(function (r) { return r.json(); }).then(function (d) { if (d && d.lines && d.lines.length) lyrCache[t.f] = d; show(d); }).catch(function () { show(null); });
   }
   function lyrWatch() {
     if (lyrTick) return;

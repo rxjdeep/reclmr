@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.9"
+VERSION = "0.8.10"
 
 CHANGELOG = [
+    {
+        "version": "0.8.10",
+        "date": "2026-11-07",
+        "changes": [
+            "Lyrics added later show up without waiting",
+            "A song with no lyrics is no longer remembered as having none (server memory or player), so a .lrc added afterwards appears straight away",
+        ]
+    },
     {
         "version": "0.8.9",
         "date": "2026-11-07",

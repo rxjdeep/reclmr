@@ -1844,9 +1844,10 @@ def music_lyrics(tid):
             out = got
     if out['lines']:
         out = {**out, 'lines': _romaji_lines(out['lines'])}
-    if len(_lyr_cache) > 400:
-        _lyr_cache.clear()
-    _lyr_cache[tid] = (time.time(), out)
+    if out['lines']:                                        # (no lyrics yet is not remembered: a .lrc file added later shows up at once; LRCLIB's own "none" answer is kept on disk above)
+        if len(_lyr_cache) > 400:
+            _lyr_cache.clear()
+        _lyr_cache[tid] = (time.time(), out)
     return jsonify(out)
 
 
