@@ -275,24 +275,32 @@ const PROJECTS = [
 let agentDetailsOpen = {};
 
 // The Android app keeps one page loaded for days, so a new version never showed up until the app was killed. When the page comes back to the
-// foreground (and every few minutes), ask the server which file version the page should be running; if it is newer, reload once it is safe:
-// nothing playing and no playlist edit open. (Playback or edits wait for a later check.)
+// foreground (and every few minutes), ask the server which file version the page should be running. If it is newer: reload at once when that is
+// safe (nothing playing, no playlist edit open); otherwise show an "Update ready" pill to tap, and reload by itself as soon as playback pauses.
 (function () {
-  var link = document.querySelector('link[href*="/static/css/app.css"]'), mine = link && (link.getAttribute('href').match(/[?&]v=(\d+)/) || [])[1], busy = false;
+  var link = document.querySelector('link[href*="/static/css/app.css"]'), mine = link && (link.getAttribute('href').match(/[?&]v=(\d+)/) || [])[1], busy = false, pending = false;
   if (!mine) return;
-  function safe() {
-    var playing = typeof musicAudio !== 'undefined' && musicAudio && !musicAudio.paused;
-    return !playing && !document.querySelector('.sp-rmbtn');
+  function playing() { return Array.prototype.some.call(document.querySelectorAll('audio'), function (a) { return !a.paused && !a.ended; }); }
+  function editing() { return !!document.querySelector('.sp-rmbtn'); }
+  function pill() {
+    if (document.getElementById('reclmr-update-pill')) return;
+    var b = document.createElement('button'); b.id = 'reclmr-update-pill'; b.type = 'button'; b.textContent = 'Update ready \u00b7 tap to reload';
+    b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--safe-top,0px) + 10px);z-index:2147483000;padding:10px 18px;border:0;border-radius:999px;background:#1db954;color:#000;font:600 14px system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.5)';
+    b.addEventListener('click', function () { location.reload(); });
+    document.body.appendChild(b);
   }
+  function apply() { if (!pending) return; if (!playing() && !editing()) location.reload(); else pill(); }
   function check() {
     if (busy || document.hidden) return;
     busy = true;
     fetch('/', { cache: 'no-store', credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (h) {
-      var m = h.match(/\/static\/css\/app\.css\?v=(\d+)/);
       busy = false;
-      if (m && m[1] !== mine && safe()) location.reload();
+      var m = h.match(/\/static\/css\/app\.css\?v=(\d+)/);
+      if (m && m[1] !== mine) { pending = true; apply(); }
     }).catch(function () { busy = false; });
   }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) setTimeout(check, 1500); });
-  setInterval(check, 5 * 60 * 1000);
+  document.addEventListener('pause', function () { setTimeout(apply, 800); }, true);      // playback stopped: now is a safe moment
+  setInterval(check, 2 * 60 * 1000);
+  setTimeout(check, 4000);
 })();

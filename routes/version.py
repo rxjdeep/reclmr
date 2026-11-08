@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.18"
+VERSION = "0.8.19"
 
 CHANGELOG = [
+    {
+        "version": "0.8.19",
+        "date": "2026-11-08",
+        "changes": [
+            "App update pill: tap to reload when an update is waiting behind playing music",
+            "When a newer version is available but music is playing or a playlist edit is open, an Update ready pill appears (tap to reload)",
+            "the page reloads by itself as soon as playback pauses",
+            "Checks for updates every 2 minutes and a few seconds after opening",
+        ]
+    },
     {
         "version": "0.8.18",
         "date": "2026-11-08",
