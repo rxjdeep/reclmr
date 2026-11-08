@@ -305,8 +305,9 @@ let agentDetailsOpen = {};
       if (m && m[1] !== mine) { pending = m[1]; apply(); }
     }).catch(function () { busy = false; });
   }
+  window.reclmrUpdateCheck = check;                               // the service worker calls this when it hears of a new version (it reloads only if this page really is behind)
   document.addEventListener('visibilitychange', function () { if (!document.hidden) setTimeout(check, 1500); });
   document.addEventListener('pause', function () { setTimeout(apply, 800); }, true);      // playback stopped: now is a safe moment
   setInterval(check, 2 * 60 * 1000);
-  setTimeout(check, 4000);
+  setTimeout(check, 15000);       // a fallback: the service worker normally reloads a just-opened stale page within a second, so wait it out
 })();

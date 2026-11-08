@@ -39,6 +39,7 @@ if ('serviceWorker' in navigator) {
   function shellReload() { if (!shellPlaying()) location.reload(); }
   navigator.serviceWorker.addEventListener('message', function (e) {
     if (!e.data || e.data.t !== 'shell-updated') return;
+    if (window.reclmrUpdateCheck) { window.reclmrUpdateCheck(); return; }       // reloads only if this page is really behind the server (one reload, not one per message)
     if (performance.now() < 10000) shellReload(); else shellStale = true;
   });
   document.addEventListener('visibilitychange', function () { if (shellStale && !document.hidden) { shellStale = false; shellReload(); } });

@@ -1,5 +1,5 @@
 // reclmr Service Worker
-const CACHE_NAME = 'reclmr-v362';
+const CACHE_NAME = 'reclmr-v363';
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // activate immediately
@@ -37,10 +37,10 @@ self.addEventListener('fetch', e => {
   if (e.request.mode === 'navigate' && url.pathname === '/') {
     e.respondWith(caches.open(CACHE_NAME).then(async c => {
       const hit = await c.match('/shell');
+      const old = hit ? await hit.clone().text() : null;       // read now: once `hit` is handed to the page its body is used up (cloning it later failed, so the saved copy never refreshed)
       const fresh = fetch(e.request).then(async r => {
         if (r.ok && r.type === 'basic') {
           const copy = r.clone(), text = await r.clone().text();
-          const old = hit ? await hit.clone().text() : null;
           await c.put('/shell', copy);
           if (old !== null && old !== text) {
             const cs = await self.clients.matchAll({ type: 'window' });
