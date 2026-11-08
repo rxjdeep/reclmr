@@ -1820,7 +1820,7 @@ var mzSp = (function () {
     function content() { return mzEl('wm-content'); }
     function move(e) {
       if (!D) return;
-      if (e.pointerId !== undefined && e.pointerId !== D.pid) return;
+      if (e.pointerId !== undefined && (e.pointerId !== D.pid || (D.pt && D.tid !== undefined))) return;       // once the held finger is followed by touch id, pointer events no longer move the row
       D.cy = e.clientY;
       var y = D.cy - D.sy + (content().scrollTop - D.scroll0);
       if (!D.sel) D.row.style.transform = 'translateY(' + y + 'px)'; dragLayout(D, y);
@@ -1835,8 +1835,7 @@ var mzSp = (function () {
     }
     function end(e) {
       if (!D) return;
-      if (e.pointerId !== undefined && e.pointerId !== D.pid) return;
-      if (e.type === 'pointercancel' && e.pointerId !== undefined && D.tid !== undefined && !D.tidGone) return;      // the browser dropped the pointer but the finger is still down
+      if (e.pointerId !== undefined && (e.pointerId !== D.pid || (D.pt && D.tid !== undefined))) return;       // a touch drag ends when its own finger lifts (touchend), whatever the pointer events say
       var d = D; D = null; cancelAnimationFrame(d.raf);
       document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', end);
       d.rows.forEach(function (r) { r.style.transform = ''; r.style.transition = ''; r.classList.remove('moving'); });
@@ -1854,20 +1853,22 @@ var mzSp = (function () {
     }
     // a second finger swipes the list while the first one holds the row (like paging the home screen while holding an app).
     // Touch events, not pointer events: the browser cancels a pointer that lands outside the list, but a prevented touch stays ours.
+    var gripT = null;                                                              // the finger that last touched a drag handle (touchstart can come before or after the pointerdown)
     function tById(list, id) { for (var i = 0; i < list.length; i++) if (list[i].identifier === id) return list[i]; return null; }
     document.addEventListener('touchstart', function (e) {
       // the held finger: Android's WebView may cancel its pointer events when a second finger lands (the drag then ended and the second
       // finger became a tap that selected a row), so it is also followed through touch events, which only end when that finger lifts
-      if (D && D.tid === undefined && D.pt && e.touches.length === 1) { D.tid = e.changedTouches[0].identifier; return; }
+      var t0 = e.touches.length === 1 && e.changedTouches[0];
+      if (t0 && t0.target && t0.target.closest && t0.target.closest('.sp-grip')) { gripT = { id: t0.identifier, at: Date.now() }; if (D && D.tid === undefined && D.pt) D.tid = t0.identifier; }
       if (!D || D.f2 || e.touches.length < 2) return;
       var t = e.changedTouches[0]; D.f2 = { id: t.identifier, y: t.clientY }; f2At = Date.now(); e.preventDefault();
     }, { passive: false, capture: true });
     document.addEventListener('touchmove', function (e) {
       if (!D) return;
       e.preventDefault();                                                        // nothing scrolls the page itself while a row is held
-      var h = D.tid !== undefined && tById(e.changedTouches, D.tid); if (h) move({ clientY: h.clientY, pointerId: D.pid });
+      var h = D.tid !== undefined && tById(e.changedTouches, D.tid); if (h) move({ clientY: h.clientY });
       var t = D.f2 && tById(e.changedTouches, D.f2.id); if (!t) return;
-      content().scrollTop += (D.f2.y - t.clientY) * 2.5; D.f2.y = t.clientY; move({ clientY: D.cy, pointerId: D.pid });
+      content().scrollTop += (D.f2.y - t.clientY) * 2.5; D.f2.y = t.clientY; move({ clientY: D.cy });
     }, { passive: false, capture: true });
     var f2At = 0;                                                                  // the helper finger must never count as a tap on the row it touches (that selected it)
     function f2End(e) {
@@ -1886,6 +1887,7 @@ var mzSp = (function () {
       if (edit.sel.size > 1 && edit.sel.has(D.ids[from])) D.sel = edit.sel;
       rows.forEach(function (r) { r.classList.add('moving'); if (D.sel && D.sel.has(r.dataset.t)) r.classList.add('dragging'); });
       row.classList.add('dragging'); content().classList.add('reordering'); mzHaptic('tick');
+      if (D.pt && gripT && Date.now() - gripT.at < 400) D.tid = gripT.id;
       document.addEventListener('pointermove', move); document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end);
       D.raf = requestAnimationFrame(scrollLoop);
     }, true);
@@ -1931,7 +1933,7 @@ var mzSp = (function () {
     function content() { return mzEl('wm-content'); }
     function move(e) {
       if (!D) return;
-      if (e.pointerId !== undefined && e.pointerId !== D.pid) return;
+      if (e.pointerId !== undefined && (e.pointerId !== D.pid || (D.pt && D.tid !== undefined))) return;       // once the held finger is followed by touch id, pointer events no longer move the row
       D.cy = e.clientY;
       var y = D.cy - D.sy + (content().scrollTop - D.scroll0);
       if (!D.sel) D.row.style.transform = 'translateY(' + y + 'px)'; dragLayout(D, y);
