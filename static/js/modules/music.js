@@ -850,7 +850,7 @@ function mzTryPlay(from) {
   if (p && p.catch) p.catch(function () { mzSetPlayIcon(false); if (from) mzSend({ t: 'blocked', to: from }); });
 }
 // ─── streaming quality: Original, or a lower-bitrate MP3 copy the server makes once and keeps ───
-var MZ_STEPS = [64, 96, 128, 192, 256, 320, 0];                  // kbps, smallest to best; 0 = the original file
+var MZ_STEPS = [64, 96, 128, 160, 192, 256, 320, 0];                  // kbps, smallest to best; 0 = the original file
 function mzQualityPrefs() {                                       // {wifi, cell}: what to ask for on each kind of network
   var p = mz.prefs, old = p.quality;
   if (p.qWifi === undefined && p.qCell === undefined && old) {   // the single setting from before: Auto meant "original on Wi-Fi, 128 on mobile data"

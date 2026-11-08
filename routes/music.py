@@ -829,7 +829,7 @@ def _nd_proxy(endpoint, params, extra_headers=None, cache=None, ctype=None):
 
 # ─── Streaming quality: lower-bitrate copies of songs, made once and kept ───────────
 # Navidrome's own transcoded stream cannot be seeked (no Range), so the MP3 is fetched whole, cached on disk and served as a normal file.
-TRANSCODE_RATES = (320, 256, 192, 128, 96, 64)
+TRANSCODE_RATES = (320, 256, 192, 160, 128, 96, 64)
 _TC_DIR = _APP_DIR / 'transcode_cache'
 _tc_locks = {}
 _tc_lock = threading.Lock()

@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.21"
+VERSION = "0.8.22"
 
 CHANGELOG = [
+    {
+        "version": "0.8.22",
+        "date": "2026-11-08",
+        "changes": [
+            "Streaming quality: 160 kbps option",
+            "Added 160 kbps (between 128 and 192) to the Wi-Fi and Mobile quality sliders",
+        ]
+    },
     {
         "version": "0.8.21",
         "date": "2026-11-08",
