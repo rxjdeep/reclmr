@@ -1856,7 +1856,7 @@ var mzSp = (function () {
     function tById(list, id) { for (var i = 0; i < list.length; i++) if (list[i].identifier === id) return list[i]; return null; }
     document.addEventListener('touchstart', function (e) {
       if (!D || D.f2 || e.touches.length < 2) return;
-      var t = e.changedTouches[0]; D.f2 = { id: t.identifier, y: t.clientY }; e.preventDefault();
+      var t = e.changedTouches[0]; D.f2 = { id: t.identifier, y: t.clientY }; f2At = Date.now(); e.preventDefault();
     }, { passive: false, capture: true });
     document.addEventListener('touchmove', function (e) {
       if (!D) return;
@@ -1864,7 +1864,9 @@ var mzSp = (function () {
       var t = D.f2 && tById(e.changedTouches, D.f2.id); if (!t) return;
       content().scrollTop += (D.f2.y - t.clientY) * 2.5; D.f2.y = t.clientY; move({ clientY: D.cy, pointerId: D.pid });
     }, { passive: false, capture: true });
-    function f2End(e) { if (D && D.f2 && tById(e.changedTouches, D.f2.id)) D.f2 = null; }
+    var f2At = 0;                                                                  // the helper finger must never count as a tap on the row it touches (that selected it)
+    function f2End(e) { if (D && D.f2 && tById(e.changedTouches, D.f2.id)) { D.f2 = null; f2At = Date.now(); } }
+    document.addEventListener('click', function (e) { if (D || Date.now() - f2At < 500) { e.stopPropagation(); e.preventDefault(); } }, true);
     document.addEventListener('touchend', f2End, true); document.addEventListener('touchcancel', f2End, true);
     document.addEventListener('pointerdown', function (e) {
       var g = e.target.closest && e.target.closest('.sp-grip'); if (!g || D) return;

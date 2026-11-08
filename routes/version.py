@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.13"
+VERSION = "0.8.14"
 
 CHANGELOG = [
+    {
+        "version": "0.8.14",
+        "date": "2026-11-08",
+        "changes": [
+            "Playlist reorder: the second finger no longer selects a track",
+            "While a row is held, taps are ignored, and for half a second after the helper finger lifts, so scrolling with the second finger can't select the track under it",
+        ]
+    },
     {
         "version": "0.8.13",
         "date": "2026-11-08",
