@@ -834,6 +834,9 @@ _TC_DIR = _APP_DIR / 'transcode_cache'
 _tc_locks = {}
 _tc_lock = threading.Lock()
 _tc_slots = threading.BoundedSemaphore(2)               # at most two songs are converted at the same time
+_bg_slot = threading.BoundedSemaphore(1)                # of those, the background "next songs" jobs may use one, never both: playing a song must not queue behind them
+_bg_lock = threading.Lock()
+_bg_pending = set()
 
 
 def _tc_limit():
@@ -1056,7 +1059,20 @@ def music_prewarm():
     ident, rate = d.get('id'), d.get('q')
     if _bad_id(ident) or (rate not in TRANSCODE_RATES and rate != 0):
         return jsonify({'error': 'bad request'}), 400
-    threading.Thread(target=(lambda: _transcoded(ident, rate)) if rate else (lambda: _faststart(ident)), daemon=True).start()
+    key = (ident, rate)
+    with _bg_lock:
+        if key in _bg_pending or len(_bg_pending) >= 2:        # already on its way, or two are waiting: the player asks again at the next song
+            return jsonify({'ok': True}), 202
+        _bg_pending.add(key)
+
+    def job():
+        try:
+            with _bg_slot:                                      # one background job at a time, so a song you press play on always has a free slot
+                _transcoded(ident, rate) if rate else _faststart(ident)
+        finally:
+            with _bg_lock:
+                _bg_pending.discard(key)
+    threading.Thread(target=job, daemon=True).start()
     return jsonify({'ok': True}), 202
 
 

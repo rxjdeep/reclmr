@@ -1296,7 +1296,10 @@ function mzBindAudio() {
     if (wd.tries > 3) { if (typeof mzToast === 'function') mzToast('Playback stalled. Press play to try again'); mzSetPlayIcon(false); return; }
     mz.resumeAt = pos;
     if (wd.tries >= 2) mz.fb = true;
-    musicAudio.src = wd.tries >= 2 ? '/api/music/stream/' + mzEnc(t.f) + '?fb=1' : mzStreamUrl(t);
+    // like closing and reopening the app: drop the element's current load completely, then start a new request (the number defeats a reused connection or saved answer)
+    var url = wd.tries >= 2 ? '/api/music/stream/' + mzEnc(t.f) + '?fb=1' : mzStreamUrl(t);
+    try { musicAudio.pause(); musicAudio.removeAttribute('src'); musicAudio.load(); } catch (_) {}
+    musicAudio.src = url + (url.indexOf('?') < 0 ? '?' : '&') + 'r=' + now;
     mzTryPlay(null);
   }
   setInterval(function () {

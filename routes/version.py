@@ -8,9 +8,18 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.19"
+VERSION = "0.8.20"
 
 CHANGELOG = [
+    {
+        "version": "0.8.20",
+        "date": "2026-11-08",
+        "changes": [
+            "Playback: background prep can't block a song, and a stall retry is a full reset",
+            "The background get-the-next-songs-ready jobs now use at most one of the two conversion slots, skip repeats and never queue more than two, so a song you press play on is not stuck behind them",
+            "When playback stalls, the retry now fully resets the audio element and sends a new request, like closing and reopening the app",
+        ]
+    },
     {
         "version": "0.8.19",
         "date": "2026-11-08",
