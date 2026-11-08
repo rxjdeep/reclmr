@@ -653,18 +653,6 @@ def music_playlist_remove(pid):
     return jsonify({'ok': True, 'removed': len(idx), 'indices': idx})
 
 
-@bp.route('/api/music/touchlog', methods=['POST'])
-def music_touchlog():
-    """TEMPORARY diagnostics: the raw touch/pointer sequence of a playlist drag on a phone, appended to a file in /tmp."""
-    b = request.get_json(silent=True) or {}
-    log = b.get('log')
-    if not isinstance(log, list) or len(log) > 3000:
-        return jsonify({'error': 'bad request'}), 400
-    with open('/tmp/reclmr-touchlog.jsonl', 'a') as f:
-        f.write(json.dumps({'ua': request.headers.get('User-Agent', '')[:200], 'ver': str(b.get('ver'))[:20], 'log': log}) + '\n')
-    return jsonify({'ok': True})
-
-
 @bp.route('/api/music/playlist/<pid>/order', methods=['POST'])
 def music_playlist_order(pid):
     """Save an edited playlist: the tracks in their new order, with any the user removed left out.

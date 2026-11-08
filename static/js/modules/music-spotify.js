@@ -1814,24 +1814,6 @@ var mzSp = (function () {
       });
   };
 
-  // TEMPORARY diagnostics: record the raw touch/pointer sequence around a drag-handle press and send it to the server (/tmp/reclmr-touchlog.jsonl)
-  (function () {
-    var rec = null, t0 = 0, n = 0, timer = 0;
-    function pts(l) { var o = []; for (var i = 0; i < l.length; i++) o.push(l[i].identifier + ':' + Math.round(l[i].clientX) + ',' + Math.round(l[i].clientY)); return o.join(' '); }
-    function flush() { if (!rec) return; var r = rec; rec = null; jpost('/api/music/touchlog', { log: r, ver: (window.RECLMR_VERSION || '') }).catch(function () {}); }
-    function add(e) {
-      if (!rec) { if (e.type !== 'pointerdown' || !e.target.closest || !e.target.closest('.sp-grip')) return; rec = []; t0 = performance.now(); n = 0; }
-      var mv = e.type === 'pointermove' || e.type === 'touchmove';
-      if (mv && (++n % 4)) return;
-      var row = e.target.closest ? e.target.closest('.sp-row') : null;
-      rec.push([Math.round(performance.now() - t0), e.type, e.pointerId === undefined ? '' : e.pointerId + (e.isPrimary ? 'P' : ''), e.changedTouches ? 'ch ' + pts(e.changedTouches) + ' | all ' + pts(e.touches) : Math.round(e.clientX) + ',' + Math.round(e.clientY),
-        (e.target.className && e.target.className.baseVal === undefined ? String(e.target.className) : e.target.tagName).slice(0, 24) + (row ? ' row' + row.dataset.c : ''), e.cancelable ? 1 : 0, e.defaultPrevented ? 1 : 0]);
-      if (rec.length > 2500) flush();
-      clearTimeout(timer); if (/up$|end$|cancel$/.test(e.type)) timer = setTimeout(flush, 1500);
-    }
-    ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'click'].forEach(function (t) { document.addEventListener(t, add, { capture: true, passive: true }); });
-  })();
-
   // ─── edit mode: hold the ≡ handle and move a row; the new order is staged until Done ───
   (function () {
     var D = null;
@@ -1886,7 +1868,7 @@ var mzSp = (function () {
       e.preventDefault();                                                        // nothing scrolls the page itself while a row is held
       var h = D.tid !== undefined && tById(e.changedTouches, D.tid); if (h) move({ clientY: h.clientY });
       var t = D.f2 && tById(e.changedTouches, D.f2.id); if (!t) return;
-      content().scrollTop += (D.f2.y - t.clientY) * 2.5; D.f2.y = t.clientY; move({ clientY: D.cy });
+      content().scrollTop += (D.f2.y - t.clientY); D.f2.y = t.clientY; move({ clientY: D.cy });
     }, { passive: false, capture: true });
     var f2At = 0;                                                                  // the helper finger must never count as a tap on the row it touches (that selected it)
     function f2End(e) {
