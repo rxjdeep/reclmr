@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.20"
+VERSION = "0.8.21"
 
 CHANGELOG = [
+    {
+        "version": "0.8.21",
+        "date": "2026-11-08",
+        "changes": [
+            "Playback: stall recovery within about 2 seconds mid-song",
+            "When sound stops mid-song the player resets and reloads it after about 2 seconds instead of 8 (the longer wait stays at the very start of a song, which may still be converting)",
+        ]
+    },
     {
         "version": "0.8.20",
         "date": "2026-11-08",

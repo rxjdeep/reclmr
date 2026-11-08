@@ -1310,8 +1310,9 @@ function mzBindAudio() {
     wd.pos = a.currentTime;
     if (moved) { wd.since = 0; return; }
     if (!wd.since) { wd.since = Date.now(); return; }
-    if (Date.now() - wd.since >= 6000) { wd.since = 0; recover('no progress, readyState ' + a.readyState); }
-  }, 2000);
+    // mid-song the sound should never just stop: react within 1.5 s. At the very start a song may be converting for a few seconds, so wait longer there.
+    if (Date.now() - wd.since >= (a.currentTime > 1 ? 1500 : 6000)) { wd.since = 0; recover('no progress, readyState ' + a.readyState); }
+  }, 500);
   musicAudio.addEventListener('ended', function () {
     var d = musicAudio.duration, c = musicAudio.currentTime;
     if (isFinite(d) && d > 10 && d - c > 5 && !mz.seeking) diagPush('ended-early', Math.round(d - c) + 's short');      // the file ended before its length: a cut stream, not a finished song
