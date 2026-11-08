@@ -286,17 +286,23 @@ let agentDetailsOpen = {};
     if (document.getElementById('reclmr-update-pill')) return;
     var b = document.createElement('button'); b.id = 'reclmr-update-pill'; b.type = 'button'; b.textContent = 'Update ready \u00b7 tap to reload';
     b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--safe-top,0px) + 10px);z-index:2147483000;padding:10px 18px;border:0;border-radius:999px;background:#1db954;color:#000;font:600 14px system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.5)';
-    b.addEventListener('click', function () { location.reload(); });
+    b.addEventListener('click', function () { try { localStorage.removeItem('reclmr_upd_try'); } catch (_) {} reload(); });
     document.body.appendChild(b);
   }
-  function apply() { if (!pending) return; if (!playing() && !editing()) location.reload(); else pill(); }
+  // One reload per new version, never a loop: the saved copy of the page (kept by the service worker) is cleared first so the reload really fetches the new one.
+  function reload() {
+    try { if (localStorage.getItem('reclmr_upd_try') === pending) return; localStorage.setItem('reclmr_upd_try', pending); } catch (_) {}
+    var go = function () { location.reload(); };
+    if (window.caches && caches.keys) caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }).then(go, go); else go();
+  }
+  function apply() { if (!pending) return; if (!playing() && !editing()) reload(); else pill(); }
   function check() {
     if (busy || document.hidden) return;
     busy = true;
     fetch('/', { cache: 'no-store', credentials: 'same-origin' }).then(function (r) { return r.text(); }).then(function (h) {
       busy = false;
       var m = h.match(/\/static\/css\/app\.css\?v=(\d+)/);
-      if (m && m[1] !== mine) { pending = true; apply(); }
+      if (m && m[1] !== mine) { pending = m[1]; apply(); }
     }).catch(function () { busy = false; });
   }
   document.addEventListener('visibilitychange', function () { if (!document.hidden) setTimeout(check, 1500); });
