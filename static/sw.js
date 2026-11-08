@@ -1,5 +1,5 @@
 // reclmr Service Worker
-const CACHE_NAME = 'reclmr-v363';
+const CACHE_NAME = 'reclmr-v364';
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // activate immediately
@@ -13,8 +13,7 @@ self.addEventListener('activate', e => {
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     )
   );
-  // an old page may have been shown from the old saved copy: tell it, so it can reload into the new version
-  e.waitUntil(self.clients.claim().then(() => self.clients.matchAll({ type: 'window' })).then(cs => cs.forEach(cl => cl.postMessage({ t: 'shell-updated' }))));
+  e.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', e => {
@@ -32,26 +31,9 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // The page itself: show the saved copy at once, fetch the new one in the background. When it changed, the page is told
-  // (it reloads straight away if it was only just opened and nothing is playing, otherwise on the next resume).
+  // The page itself: never cached. Always straight from the server, so every start is the current version.
   if (e.request.mode === 'navigate' && url.pathname === '/') {
-    e.respondWith(caches.open(CACHE_NAME).then(async c => {
-      const hit = await c.match('/shell');
-      const old = hit ? await hit.clone().text() : null;       // read now: once `hit` is handed to the page its body is used up (cloning it later failed, so the saved copy never refreshed)
-      const fresh = fetch(e.request).then(async r => {
-        if (r.ok && r.type === 'basic') {
-          const copy = r.clone(), text = await r.clone().text();
-          await c.put('/shell', copy);
-          if (old !== null && old !== text) {
-            const cs = await self.clients.matchAll({ type: 'window' });
-            cs.forEach(cl => cl.postMessage({ t: 'shell-updated' }));
-          }
-        }
-        return r;
-      });
-      if (hit) { e.waitUntil(fresh.catch(() => {})); return hit; }
-      return fresh;
-    }));
+    e.respondWith(fetch(e.request, { cache: 'no-store' }));
     return;
   }
 

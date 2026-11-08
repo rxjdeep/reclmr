@@ -309,5 +309,5 @@ let agentDetailsOpen = {};
   document.addEventListener('visibilitychange', function () { if (!document.hidden) setTimeout(check, 1500); });
   document.addEventListener('pause', function () { setTimeout(apply, 800); }, true);      // playback stopped: now is a safe moment
   setInterval(check, 2 * 60 * 1000);
-  setTimeout(check, 15000);       // a fallback: the service worker normally reloads a just-opened stale page within a second, so wait it out
+  check();                         // at start: the page itself is never cached now, so this finds nothing unless the server updated in the last second
 })();
