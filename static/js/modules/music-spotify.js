@@ -1836,6 +1836,7 @@ var mzSp = (function () {
     function end(e) {
       if (!D) return;
       if (e.pointerId !== undefined && e.pointerId !== D.pid) return;
+      if (e.type === 'pointercancel' && e.pointerId !== undefined && D.tid !== undefined && !D.tidGone) return;      // the browser dropped the pointer but the finger is still down
       var d = D; D = null; cancelAnimationFrame(d.raf);
       document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', end);
       d.rows.forEach(function (r) { r.style.transform = ''; r.style.transition = ''; r.classList.remove('moving'); });
@@ -1855,17 +1856,25 @@ var mzSp = (function () {
     // Touch events, not pointer events: the browser cancels a pointer that lands outside the list, but a prevented touch stays ours.
     function tById(list, id) { for (var i = 0; i < list.length; i++) if (list[i].identifier === id) return list[i]; return null; }
     document.addEventListener('touchstart', function (e) {
+      // the held finger: Android's WebView may cancel its pointer events when a second finger lands (the drag then ended and the second
+      // finger became a tap that selected a row), so it is also followed through touch events, which only end when that finger lifts
+      if (D && D.tid === undefined && D.pt && e.touches.length === 1) { D.tid = e.changedTouches[0].identifier; return; }
       if (!D || D.f2 || e.touches.length < 2) return;
       var t = e.changedTouches[0]; D.f2 = { id: t.identifier, y: t.clientY }; f2At = Date.now(); e.preventDefault();
     }, { passive: false, capture: true });
     document.addEventListener('touchmove', function (e) {
       if (!D) return;
       e.preventDefault();                                                        // nothing scrolls the page itself while a row is held
+      var h = D.tid !== undefined && tById(e.changedTouches, D.tid); if (h) move({ clientY: h.clientY, pointerId: D.pid });
       var t = D.f2 && tById(e.changedTouches, D.f2.id); if (!t) return;
       content().scrollTop += (D.f2.y - t.clientY) * 2.5; D.f2.y = t.clientY; move({ clientY: D.cy, pointerId: D.pid });
     }, { passive: false, capture: true });
     var f2At = 0;                                                                  // the helper finger must never count as a tap on the row it touches (that selected it)
-    function f2End(e) { if (D && D.f2 && tById(e.changedTouches, D.f2.id)) { D.f2 = null; f2At = Date.now(); } }
+    function f2End(e) {
+      if (!D) return;
+      if (D.f2 && tById(e.changedTouches, D.f2.id)) { D.f2 = null; f2At = Date.now(); }
+      if (D && D.tid !== undefined && tById(e.changedTouches, D.tid)) { D.tidGone = true; end({ type: e.type === 'touchend' ? 'touchend' : 'pointercancel' }); }
+    }
     document.addEventListener('click', function (e) { if (D || Date.now() - f2At < 500) { e.stopPropagation(); e.preventDefault(); } }, true);
     document.addEventListener('touchend', f2End, true); document.addEventListener('touchcancel', f2End, true);
     document.addEventListener('pointerdown', function (e) {
@@ -1873,7 +1882,7 @@ var mzSp = (function () {
       var row = g.closest('.sp-row'), list = row && row.parentElement; if (!row || !list || !edit || mz.view.type !== 'playlist') return;
       e.preventDefault(); e.stopPropagation();
       var rows = Array.prototype.slice.call(list.querySelectorAll('.sp-row.trk')), from = rows.indexOf(row); if (from < 0) return;
-      D = { row: row, rows: rows, ids: rows.map(function (r) { return r.dataset.t; }), from: from, to: from, h: row.offsetHeight, top0: from * row.offsetHeight, pid: e.pointerId, sy: e.clientY, cy: e.clientY, scroll0: content().scrollTop, raf: 0 };
+      D = { row: row, rows: rows, ids: rows.map(function (r) { return r.dataset.t; }), from: from, to: from, h: row.offsetHeight, top0: from * row.offsetHeight, pid: e.pointerId, pt: e.pointerType === 'touch', sy: e.clientY, cy: e.clientY, scroll0: content().scrollTop, raf: 0 };
       if (edit.sel.size > 1 && edit.sel.has(D.ids[from])) D.sel = edit.sel;
       rows.forEach(function (r) { r.classList.add('moving'); if (D.sel && D.sel.has(r.dataset.t)) r.classList.add('dragging'); });
       row.classList.add('dragging'); content().classList.add('reordering'); mzHaptic('tick');
