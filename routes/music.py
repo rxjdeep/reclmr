@@ -446,7 +446,8 @@ def _nd_library():
     try:
         pls = _nd_get('getPlaylists').get('playlists', {}).get('playlist', [])
         playlists = [{'id': p['id'], 'name': p.get('name', ''), 'n': p.get('songCount', 0),
-                      'c': p.get('coverArt', ''), 'd': p.get('duration', 0)} for p in pls]
+                      'c': p.get('coverArt', ''), 'd': p.get('duration', 0),
+                      'u': _epoch(p.get('changed') or p.get('created'))} for p in pls]
     except Exception:
         playlists = []
     return {'source': 'navidrome', 'tracks': tracks, 'playlists': playlists}

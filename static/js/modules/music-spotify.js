@@ -6,7 +6,7 @@
 
 var mzSp = (function () {
   var SP = {};
-  var libFilter = '', libSort = 'recent', tintCache = {};
+  var libFilter = 'playlists', libSort = 'recent', tintCache = {};
   var slots = {};                                                // 'playlistId|songId' -> the position a removed song had, so re-adding puts it back there
   var edit = null;                                               // playlist edit mode: { pid, draft: [ids], base: n, saving }
   var ME = 'raj';
@@ -203,7 +203,7 @@ var mzSp = (function () {
     if (!f || f === 'playlists') {
       var nl = liked().length;
       items.push(item('liked', '', likedCov(), 'Liked Songs', 'Playlist • ' + plural(nl, 'song'), v.type === 'favorites'));
-      mz.playlists.slice().sort(libSort === 'alpha' ? function (a, b) { return a.name.localeCompare(b.name); } : function () { return 0; }).forEach(function (p) {
+      mz.playlists.slice().sort(libSort === 'alpha' ? function (a, b) { return a.name.localeCompare(b.name); } : function (a, b) { return (b.u || 0) - (a.u || 0); }).forEach(function (p) {
         items.push(item('playlist', p.id, plCov(p, 100), p.name, 'Playlist • ' + ME, v.type === 'playlist' && v.key === p.id));
       });
     }

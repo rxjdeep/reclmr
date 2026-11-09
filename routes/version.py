@@ -8,9 +8,18 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.25"
+VERSION = "0.8.26"
 
 CHANGELOG = [
+    {
+        "version": "0.8.26",
+        "date": "2026-11-10",
+        "changes": [
+            "Library: Recents now sorts playlists by last change; Playlists filter is the default",
+            "library: playlist recents sort",
+            "library: default filter playlists",
+        ]
+    },
     {
         "version": "0.8.25",
         "date": "2026-11-09",
