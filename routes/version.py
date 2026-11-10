@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.31"
+VERSION = "0.8.32"
 
 CHANGELOG = [
+    {
+        "version": "0.8.32",
+        "date": "2026-11-11",
+        "changes": [
+            "Artist page: a song filed under an artist's own folder counts as theirs, even in a collab",
+            "artist: collabs filed under the artist's folder count as their own",
+        ]
+    },
     {
         "version": "0.8.31",
         "date": "2026-11-11",

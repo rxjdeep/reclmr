@@ -571,7 +571,11 @@ var mzSp = (function () {
 
   function artistView() {
     var a = mz.artists.get(mz.view.key); if (!a) return missing();
-    function lead(t) { var c = mzCredits(t); return c.length && c[0].id === a.id; }            // their own song, not one where they are a guest
+    var home = a.name.toLowerCase() + '/';
+    function lead(t) {                                                                       // their own song, not one where they are a guest: first credit, or filed under their own folder (a collab)
+      var c = mzCredits(t);
+      return (c.length && c[0].id === a.id) || (t.p || '').toLowerCase().indexOf(home) === 0;
+    }
     var popular = a.tracks.slice().sort(function (x, y) { return (lead(y) ? 1 : 0) - (lead(x) ? 1 : 0) || (y.pc || 0) - (x.pc || 0) || x.al.localeCompare(y.al) || (x.n || 999) - (y.n || 999); });
     var byYear = function (x, y) { return (y.year || '').localeCompare(x.year || ''); };
     var albums = [], appears = [], me = a.name.toLowerCase();
