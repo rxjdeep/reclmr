@@ -997,7 +997,13 @@ function mzOnCmd(m) {
 }
 
 function mzTransfer(id) {
-  if (!mzSend({ t: 'transfer', to: id })) { mzHaptic('warn'); mzToast('Not connected to the server'); } else mzHaptic('select');
+  var msg = { t: 'transfer', to: id };
+  if (!mz.remote && mzCur()) {                       // hand over what THIS device is showing, not whatever the server last saved
+    mzLastSig = '';
+    var info = mzBody(); info.body.playing = true;
+    Object.assign(msg, info.body); mz.inflight = info;
+  }
+  if (!mzSend(msg)) { mzHaptic('warn'); mzToast('Not connected to the server'); } else mzHaptic('select');
 }
 function mzDevicesMenu(e) {
   e.stopPropagation();

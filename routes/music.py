@@ -2150,6 +2150,15 @@ def register(sock):
                     act = _effective_active(sess)
                     if target not in _conns or _conns[target].get('ctl') or target == act:
                         continue
+                    if m.get('q') and act != dev and (not act or act not in _conns):
+                        try:                         # the sender is showing a song and nobody is playing: that song is what moves
+                            _report(dev, label, m, force=True)
+                            with _session_lock:
+                                cur = _load_session() or {}
+                                cur['_fresh'] = True
+                                _SESSION_FILE.write_text(json.dumps(cur))
+                        except _Bad:
+                            pass
                     if act and act in _conns:
                         _send(act, {'t': 'cmd', 'a': 'handoff', 'to': target})
                         tm = threading.Timer(2.5, _finalize_transfer, args=(target,))
