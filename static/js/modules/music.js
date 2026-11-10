@@ -1007,6 +1007,7 @@ function mzTransfer(id) {
 }
 function mzDevicesMenu(e) {
   e.stopPropagation();
+  mzVolOffer(true);
   if (mzUseSheet()) {
     var me0 = mzMe(), items = mz.devices.map(function (d) {
       return { label: d.label + (d.id === me0 ? ' · this device' : ''), sub: d.active ? 'Playing' : '', on: d.active, run: function () { mzTransfer(d.id); } };
@@ -1027,6 +1028,34 @@ function mzDevicesMenu(e) {
   m.style.left = Math.max(4, Math.min(r.right - mr.width, window.innerWidth - mr.width - 4)) + 'px';
   m.style.top = Math.max(4, r.top - mr.height - 8) + 'px';
 }
+
+// ─── laptop volume (scripts/volume_agent.py runs on the laptop; the buttons only appear while it is online) ───
+function mzVolOffer(first) {
+  fetch('/api/volume/agents').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    var box = document.querySelector('#sp-msheet .sp-addscroll') || (mzEl('wm-menu') && mzEl('wm-menu').style.display !== 'none' ? mzEl('wm-menu') : null);
+    if (!d || !box) { if (first) setTimeout(function () { mzVolOffer(false); }, 400); return; }       // the menu may not be in the page yet
+    var on = (d.agents || []).filter(function (a) { return a.online; });
+    var old = box.querySelector('.mz-vol'); if (old) old.remove();
+    if (!on.length) return;
+    on.forEach(function (a) {
+      var row = document.createElement('div'); row.className = 'mz-vol'; row.dataset.name = a.name;
+      row.innerHTML = '<span class="mz-vol-l"><b>' + escapeHtml(a.name) + ' volume</b><small class="mz-vol-n">' + (a.level == null ? '' : a.level + '%') + (a.muted ? ' · muted' : '') + '</small></span>' +
+        '<button type="button" class="mz-vol-b" data-vol="-5" aria-label="Volume down">\u2212</button><button type="button" class="mz-vol-b" data-vol="5" aria-label="Volume up">+</button>';
+      box.appendChild(row);
+    });
+  }).catch(function () {});
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest && e.target.closest('.mz-vol-b'); if (!b) return;
+  e.stopPropagation(); e.preventDefault();
+  var row = b.closest('.mz-vol'), n = row.querySelector('.mz-vol-n'); mzHaptic('tick');
+  fetch('/api/volume/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: row.dataset.name, step: parseInt(b.dataset.vol, 10) }) })
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (x) {
+      if (!x.ok) { mzToast(x.d.error === 'no laptop connected' ? 'Laptop not connected' : 'Could not change the volume'); return; }
+      if (n && x.d.level != null) n.textContent = x.d.level + '%' + (x.d.muted ? ' \u00b7 muted' : '');
+    }).catch(function () { mzToast('Could not reach the server'); });
+}, true);
 
 // Put a saved session in place. Always paused unless asked to play.
 function mzApplyState(st, opts) {

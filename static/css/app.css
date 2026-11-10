@@ -7146,3 +7146,11 @@ body.desktop-mode .home-title .ht-prompt { font-size: 17px; }
   /* keyboard focus must stay visible on the pill controls */
   .wm[data-mzt="spotify"][data-skin="modern"] :is(.sp-navitem, .sp-li, .sp-chip, .sp-cardx, .wm-play):focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 }
+
+/* laptop volume row in the Connect menu */
+.mz-vol { display: flex; align-items: center; gap: 10px; padding: 10px 16px; }
+.mz-vol-l { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mz-vol-l b { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mz-vol-l small { opacity: .65; font-size: 12px; }
+.mz-vol-b { width: 52px; height: 44px; border: 0; border-radius: 22px; background: #2a2a2a; color: #fff; font: inherit; font-size: 24px; line-height: 1; cursor: pointer; touch-action: manipulation; }
+.mz-vol-b:active { background: #1db954; color: #000; }

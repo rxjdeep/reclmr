@@ -87,3 +87,6 @@ def register_blueprints(app, sock):
 
     from .backup import bp as backup_bp
     app.register_blueprint(backup_bp)
+
+    from .volume import bp as volume_bp
+    app.register_blueprint(volume_bp)
