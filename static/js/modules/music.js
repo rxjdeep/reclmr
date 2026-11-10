@@ -771,7 +771,7 @@ function mzOnState(m) {
     if (!wasRemote) { mzHaptic('remote'); mzToast('Listening on ' + mzDevLabel(m.active)); }
   } else {                                                                       // nobody is playing
     mz.remote = false; mz.rs = null;
-    if (s.dev !== me && !mzCur() && musicAudio && musicAudio.paused) mzApplyState(st, {});   // only a device with nothing of its own takes up another's idle session; otherwise it keeps its own song
+    if (s.dev !== me && musicAudio && musicAudio.paused) mzApplyState(st, {});   // one shared song: an idle device follows whatever another device last chose
   }
   mzUpdateRemoteUI();
 }
@@ -1065,7 +1065,7 @@ async function mzRestoreState() {
   mz.rev = (local && local.rev) || 0;
   if (srv && srv.active && srv.active !== mzMe()) return;   // another device is playing: the live channel will mirror it
   var mine = srv && srv.s.dev === mzMe();
-  var useServer = srv && (!local || !local.q || !local.q.length || mine);   // this device's own last song wins; another device's session is used only when this one has nothing saved
+  var useServer = !!srv;                            // one shared song for every device: the server's session is the truth; this device's own copy is only for when the server cannot be reached
   if (useServer) {
     var st = srv.s.state;
     if (!mine && st.playing) st.pos = (st.pos || 0) + Math.max(0, srv.now - srv.s.updated);
@@ -1083,7 +1083,6 @@ async function mzSync() {
   if (mzWsOpen() || !mz.loaded || (musicAudio && !musicAudio.paused)) return;
   var srv = await mzFetchSession();
   if (!srv || srv.s.updated <= mz.rev || srv.s.dev === mzMe()) return;
-  if (mzCur()) return;                              // already has its own song: never swap it for another device's
   if (musicAudio && !musicAudio.paused) return;
   var st = srv.s.state;
   if (st.playing) st.pos = (st.pos || 0) + Math.max(0, srv.now - srv.s.updated);
