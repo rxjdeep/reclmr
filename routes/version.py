@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.30"
+VERSION = "0.8.31"
 
 CHANGELOG = [
+    {
+        "version": "0.8.31",
+        "date": "2026-11-11",
+        "changes": [
+            "Artist page: their own songs and releases first; albums they only guest on go under Appears on",
+            "artist: own songs first in Popular",
+            "artist: Discography only lists their releases",
+            "artist: Appears on section for guest spots",
+        ]
+    },
     {
         "version": "0.8.30",
         "date": "2026-11-11",

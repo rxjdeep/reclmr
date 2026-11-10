@@ -540,8 +540,8 @@ var mzSp = (function () {
   function missing() { return { html: '<div class="sp-page"><div class="sp-pbody"><div class="sp-empty"><h2>Couldn\'t find that page</h2><p>It may have been removed from your library.</p></div></div></div>', hue: 230 }; }
 
   // one block per album: a clickable header, then its tracks as ordinary playable rows
-  function discoBlock(al, a, ctx) {
-    var tr = al.tracks.slice().sort(function (x, y) { return (x.n || 999) - (y.n || 999); });
+  function discoBlock(al, a, ctx, onlyMine) {
+    var tr = al.tracks.filter(function (t) { return !onlyMine || mzCredits(t).some(function (c) { return c.id === a.id; }); }).sort(function (x, y) { return (x.n || 999) - (y.n || 999); });
     var single = tr.length === 1;
     if (single) ctx.push(tr[0]);                               // a lone track would just repeat the header
     var rows = single ? '' : tr.map(function (t) { ctx.push(t); return rowHtml(t, ctx.length - 1, { num: 'n', hideArtist: t.ar === a.name, cls: 'artist' }); }).join('');
@@ -571,8 +571,15 @@ var mzSp = (function () {
 
   function artistView() {
     var a = mz.artists.get(mz.view.key); if (!a) return missing();
-    var popular = a.tracks.slice().sort(function (x, y) { return (y.pc || 0) - (x.pc || 0) || x.al.localeCompare(y.al) || (x.n || 999) - (y.n || 999); });
-    var albums = Array.from(a.albums).sort(function (x, y) { return (y.year || '').localeCompare(x.year || ''); });
+    function lead(t) { var c = mzCredits(t); return c.length && c[0].id === a.id; }            // their own song, not one where they are a guest
+    var popular = a.tracks.slice().sort(function (x, y) { return (lead(y) ? 1 : 0) - (lead(x) ? 1 : 0) || (y.pc || 0) - (x.pc || 0) || x.al.localeCompare(y.al) || (x.n || 999) - (y.n || 999); });
+    var byYear = function (x, y) { return (y.year || '').localeCompare(x.year || ''); };
+    var albums = [], appears = [], me = a.name.toLowerCase();
+    Array.from(a.albums).forEach(function (al) {                                              // their releases first; albums they only guest on go under "Appears on"
+      var byAa = (al.aa || '').split(/\s*[;,]\s*/).some(function (n) { return n.toLowerCase() === me; });
+      (byAa || al.tracks.filter(lead).length * 2 >= al.tracks.length ? albums : appears).push(al);
+    });
+    albums.sort(byYear); appears.sort(byYear);
     var nPop = mz.spPopMore === a.id ? 10 : 5;
     var ctx = popular.slice(0, nPop);
     var rows = popular.slice(0, nPop).map(function (t, i) { return rowHtml(t, i, { cover: true, plays: true, cls: 'artist' }); }).join('');
@@ -585,6 +592,7 @@ var mzSp = (function () {
     var more = popular.length > 5 ? '<button class="sp-showmore" data-act="sp-popmore" data-v="' + esc(a.id) + '">' + (nPop > 5 ? 'Show less' : 'Show more') + '</button>' : '';
     var body = actions('artist:' + a.id) + '<h2 class="sp-h2">Popular</h2><div class="sp-tbl pl compact art">' + rows + '</div>' + more +
       (albums.length ? '<h2 class="sp-h2">Discography</h2><div class="sp-disc">' + albums.map(function (al) { return discoBlock(al, a, ctx); }).join('') + '</div>' : '') +
+      (appears.length ? '<h2 class="sp-h2">Appears on</h2><div class="sp-disc">' + appears.map(function (al) { return discoBlock(al, a, ctx, true); }).join('') + '</div>' : '') +
       (mz.source === 'navidrome' ? '<div id="sp-about" data-aid="' + esc(a.id) + '"></div>' : '');
     mz.ctx = ctx;
     if (mz.source === 'navidrome') loadAbout(a.id);
