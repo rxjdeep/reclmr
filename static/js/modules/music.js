@@ -758,8 +758,20 @@ function mzOnState(m) {
   if (!mz.loaded) { mz.pendingMsg = m; mzUpdateRemoteUI(); return; }
   var s = m.s, me = mzMe();
   if (!s || !s.state || !s.state.q) { mz.remote = false; mzUpdateRemoteUI(); return; }
+  var newer = s.updated > (mz.rev || 0);                                         // the server's copy changed since this device last saw it
   mz.rev = s.updated;
-  if (m.active === me) { mz.remote = false; mz.rs = null; mzUpdateRemoteUI(); return; }
+  if (m.active === me) {
+    mz.remote = false; mz.rs = null;
+    // "you are the active device" can arrive after a switch whose message never got here (a sleeping tab keeps a dead connection that looks open).
+    // Then this device must catch up to what the server has, not carry on with an older song or sit silent.
+    var sc = s.state.cur && s.state.q.indexOf(s.state.cur) >= 0 ? s.state.cur : s.state.q[s.state.qi], mine = mzCur();
+    if (newer && (!mine || mine.f !== sc || (s.state.playing && musicAudio && musicAudio.paused))) {
+      var st0 = Object.assign({}, s.state);
+      if (st0.playing) st0.pos = (st0.pos || 0) + Math.max(0, m.now - s.updated);
+      if (mzApplyState(st0, { play: !!st0.playing })) mzToast('Playing on this device');
+    }
+    mzUpdateRemoteUI(); return;
+  }
   var st = Object.assign({}, s.state);
   if (st.playing) st.pos = (st.pos || 0) + Math.max(0, m.now - s.updated);      // it kept playing since the report
   if (m.active) {                                                                // someone else is playing: I am a remote
