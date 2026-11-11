@@ -1041,7 +1041,7 @@ function mzVolOffer(first) {
       var row = document.createElement('div'); row.className = 'mz-vol'; row.dataset.name = a.name;
       var lv = a.level == null ? 0 : Math.round(a.level / 2) * 2;
       row.innerHTML = '<span class="mz-vol-l"><b>' + escapeHtml(a.name) + ' volume</b><small class="mz-vol-n">' + (a.level == null ? '' : lv + '%') + (a.muted ? ' \u00b7 muted' : '') + '</small></span>' +
-        '<input type="range" class="mz-vol-s" min="0" max="100" step="2" value="' + lv + '" aria-label="Volume" style="--p:' + lv + '%">';
+        '<div class="mz-vol-w" style="--f:' + (lv / 100) + '"><div class="mz-vol-ticks"><i></i></div><input type="range" class="mz-vol-s" min="0" max="100" step="2" value="' + lv + '" aria-label="Volume" style="--p:' + lv + '%"></div>';
       box.appendChild(row);
     });
   }).catch(function () {});
@@ -1062,7 +1062,8 @@ function mzVolSend(row, v) {                                     // latest posit
 document.addEventListener('input', function (e) {
   var s = e.target; if (!s.classList || !s.classList.contains('mz-vol-s')) return;
   var row = s.closest('.mz-vol'), v = parseInt(s.value, 10);
-  s.style.setProperty('--p', v + '%');
+  s.style.setProperty('--p', v + '%'); s.parentNode.style.setProperty('--f', v / 100);
+  if (s.dataset.last !== String(v)) { s.dataset.last = String(v); mzHaptic('tick'); }               // a buzz on every notch
   row.querySelector('.mz-vol-n').textContent = v + '%';
   mzVolSend(row, v);
 }, true);

@@ -7158,3 +7158,12 @@ body.desktop-mode .home-title .ht-prompt { font-size: 17px; }
 .mz-vol-s::-moz-range-progress { height: 6px; border-radius: 3px; background: #1db954; }
 .mz-vol-s::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 1px 4px rgba(0,0,0,.5); }
 .mz-vol-s::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: #fff; border: 0; }
+
+/* notches under the volume slider: one every 2, a taller one every 10; the ones below the thumb light up */
+.mz-vol-w { position: relative; padding: 10px 0; }
+.mz-vol-ticks { position: absolute; left: 11px; right: 11px; top: 0; bottom: 0; pointer-events: none; }
+.mz-vol-ticks, .mz-vol-ticks i { --minor: linear-gradient(to right, var(--tc, rgba(255,255,255,.28)) 1px, transparent 1px); --major: linear-gradient(to right, var(--tc, rgba(255,255,255,.28)) 1px, transparent 1px); }
+.mz-vol-ticks { background-image: var(--minor), var(--major); background-repeat: repeat-x, repeat-x; background-position: 0 center, 0 center; background-size: calc((100% - 1px) / 50) 8px, calc((100% - 1px) / 10) 16px; }
+.mz-vol-ticks i { --tc: #1db954; position: absolute; inset: 0; background-image: var(--minor), var(--major); background-repeat: repeat-x, repeat-x; background-position: 0 center, 0 center; background-size: calc((100% - 1px) / 50) 8px, calc((100% - 1px) / 10) 16px; clip-path: inset(0 calc(100% - ((100% - 1px) * var(--f, 0) + 1px)) 0 0); }
+.mz-vol-s { position: relative; }
+.mz-vol-s:active::-webkit-slider-thumb { transform: scale(1.25); }
