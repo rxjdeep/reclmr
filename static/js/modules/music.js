@@ -713,7 +713,7 @@ function mzConnect() {
   mz.ws = ws;
   ws.onopen = function () {
     mz.wsTry = 0;
-    mzSend({ t: 'hello', dev: mzMe(), label: mzDeviceLabel() });
+    mzSend({ t: 'hello', dev: mzMe(), label: mzDeviceLabel(), ver: (function () { var l = document.querySelector('link[href*="/static/css/app.css"]'); return l && (l.getAttribute('href').match(/[?&]v=(\d+)/) || [])[1] || ''; })() });
     mz.lastRx = Date.now();
     clearInterval(mz.hb); mz.hb = setInterval(function () {
       if (Date.now() - mz.lastRx > 50000) { mzRevive(true); return; }   // nothing back for 50 s: the socket is dead (phones drop it silently)
@@ -779,7 +779,7 @@ function mzOnState(m) {
 // mirror the active device's state without touching local audio
 function mzApplyRemote(st) {
   var tracks = st.q.map(function (id) { return mz.byId.get(id); }).filter(Boolean);
-  var at = tracks.findIndex(function (t) { return t.f === st.q[st.qi]; });
+  var at = tracks.findIndex(function (t) { return t.f === (st.cur && st.q.indexOf(st.cur) >= 0 ? st.cur : st.q[st.qi]); });
   if (at < 0) return;
   var prev = mzCur();
   mz.queue = tracks; mz.qi = at; mz.origQueue = null;
@@ -1071,7 +1071,7 @@ document.addEventListener('input', function (e) {
 // Put a saved session in place. Always paused unless asked to play.
 function mzApplyState(st, opts) {
   opts = opts || {};
-  var curId = st.q[st.qi], tracks = st.q.map(function (id) { return mz.byId.get(id); }).filter(Boolean);
+  var curId = st.cur && st.q.indexOf(st.cur) >= 0 ? st.cur : st.q[st.qi], tracks = st.q.map(function (id) { return mz.byId.get(id); }).filter(Boolean);
   var at = tracks.findIndex(function (t) { return t.f === curId; });
   if (at < 0) return false;                      // the track is gone from the library
   var prev = mzCur(), sameTrack = prev && prev.f === curId && musicAudio && musicAudio.src;

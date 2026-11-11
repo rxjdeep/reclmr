@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.35"
+VERSION = "0.8.36"
 
 CHANGELOG = [
+    {
+        "version": "0.8.36",
+        "date": "2026-11-12",
+        "changes": [
+            "Switching devices: the session now stores the exact current song and a device taking over plays that id; connects and transfers are logged with the app version",
+            "connect: session stores the current song id",
+            "connect: takeover uses the id, not a queue index",
+            "connect: hello/transfer lines in the journal with app version",
+        ]
+    },
     {
         "version": "0.8.35",
         "date": "2026-11-11",

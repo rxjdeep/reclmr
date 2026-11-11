@@ -2018,6 +2018,10 @@ def _report(dev, label, b, force=False):
         if q is None and queue[qi] != b.get('cur'):
             return {'ok': False, 'stale': True}
         st.update(qi=qi, pos=round(pos, 1), playing=playing, sh=bool(b.get('sh')), rp=rp)
+        if isinstance(b.get('cur'), str) and b['cur'] in queue:
+            st['cur'] = b['cur']                               # the song itself, so a device taking over never has to trust an index into the queue
+        else:
+            st.pop('cur', None)
         if 'cx' in b:
             st['cx'] = _clean_ctx(b)
         if act == dev or playing:
@@ -2069,9 +2073,11 @@ def _finalize_transfer(target):
         cur = _load_session()
         if not cur or target not in _conns:
             return
-        st = _extrapolated(cur) if not cur.get('_fresh') else dict(cur.get('state') or {})
+        fresh = bool(cur.get('_fresh'))
+        st = _extrapolated(cur) if not fresh else dict(cur.get('state') or {})
         cur.pop('_fresh', None)
         label = _conns[target]['label']
+        print('[connect] transfer -> %s "%s": song=%s pos=%s playing=%s fresh=%s' % (target, label, st.get('cur') or (st.get('q') or ['?'])[min(len(st.get('q') or [1]) - 1, st.get('qi', 0))], st.get('pos'), st.get('playing'), fresh), flush=True)
         out = {'state': st, 'updated': time.time(), 'dev': target, 'label': label, 'active': target}
         _SESSION_FILE.write_text(json.dumps(out))
     _send(target, {'t': 'cmd', 'a': 'takeover', 'state': st, 'play': bool(st.get('playing'))})
@@ -2133,6 +2139,7 @@ def register(sock):
                             old['ws'].close()
                         except Exception:
                             pass
+                    print('[connect] hello %s "%s" app v%s' % (dev, label, str(m.get('ver') or '?')[:8]), flush=True)
                     with _session_lock:
                         sess = _load_session() or {}
                     _send(dev, _state_msg(sess))
