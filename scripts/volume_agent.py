@@ -143,7 +143,10 @@ def main():
             d = call(a.url, '/api/volume/agent/poll', {'name': a.name, 'level': level, 'muted': muted, 'platform': platform.system(), 'backend': backend}, token)
             fails = 0
             for c in d.get('cmds', []):
-                if c.get('a') == 'step':
+                if c.get('a') == 'set':
+                    new = max(0, min(100, int(c.get('v', 0))))
+                    set_(new, unmute=new > 0)
+                elif c.get('a') == 'step':
                     cur, _ = get()
                     new = max(0, min(100, cur + int(c.get('v', 0))))
                     set_(new, unmute=new > 0)

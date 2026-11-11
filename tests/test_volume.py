@@ -57,3 +57,22 @@ def test_step_is_clamped(client, auth_headers, monkeypatch):
     client.post('/api/volume/step', json={'step': 999}, headers=auth_headers)
     t.join()
     assert got['r']['cmds'] == [{'a': 'step', 'v': 25}]
+
+
+def test_set_only_even_numbers_0_to_100(client, auth_headers):
+    _reset()
+    for bad in (-2, 101, 99, 45, 'x', None, 100.5):
+        assert client.post('/api/volume/set', json={'level': bad}, headers=auth_headers).status_code == 400
+    assert client.post('/api/volume/set', json={'level': 40}, headers=auth_headers).status_code == 409      # valid, but nobody is listening
+
+
+def test_set_reaches_agent_and_newest_wins(client, auth_headers, monkeypatch):
+    _reset()
+    monkeypatch.setattr(volume, '_WAIT', 2)
+    got = {}
+    with volume._cv:
+        volume._agents['lap'] = {'cmds': [{'a': 'set', 'v': 10}], 'n': 0, 'level': 30, 'muted': False, 'platform': 'Linux', 'backend': 'wpctl', 'seen': time.time()}
+    t = threading.Thread(target=lambda: got.update(r=client.application.test_client().post('/api/volume/agent/poll', json={'name': 'lap', 'level': 30}, headers=auth_headers).get_json()))
+    client.post('/api/volume/set', json={'level': 60}, headers=auth_headers)           # an older queued set is replaced
+    t.start(); t.join()
+    assert got['r']['cmds'] == [{'a': 'set', 'v': 60}]

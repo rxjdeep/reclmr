@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.33"
+VERSION = "0.8.34"
 
 CHANGELOG = [
+    {
+        "version": "0.8.34",
+        "date": "2026-11-11",
+        "changes": [
+            "Laptop volume is a slider that moves in even numbers (0 to 100, steps of 2)",
+            "volume: slider replaces the two buttons",
+            "volume: /api/volume/set accepts even numbers only",
+            "volume agent: sets an exact level",
+        ]
+    },
     {
         "version": "0.8.33",
         "date": "2026-11-11",

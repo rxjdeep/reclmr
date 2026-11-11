@@ -83,3 +83,27 @@ def volume_step():
         while a['n'] == before and time.time() < end:
             _cv.wait(timeout=0.2)
         return jsonify({'ok': True, 'agent': name, 'level': a['level'], 'muted': a['muted']})
+
+
+@bp.route('/api/volume/set', methods=['POST'])
+def volume_set():
+    """The phone's slider: set the laptop volume to an even number from 0 to 100. Waits briefly for the new level."""
+    b = request.get_json(silent=True) or {}
+    level = b.get('level')
+    if not isinstance(level, int) or isinstance(level, bool) or not 0 <= level <= 100 or level % 2:
+        return jsonify({'error': 'bad level'}), 400
+    now = time.time()
+    with _cv:
+        live = [n for n, a in _agents.items() if now - a['seen'] < _ONLINE]
+        want = _name(b.get('name')) if b.get('name') else None
+        name = want if want in live else (live[0] if len(live) == 1 and not want else None)
+        if not name:
+            return jsonify({'error': 'no laptop connected'}), 409
+        a = _agents[name]
+        before = a['n']
+        a['cmds'] = [c for c in a['cmds'] if c.get('a') != 'set'] + [{'a': 'set', 'v': level}]       # only the newest position matters
+        _cv.notify_all()
+        end = time.time() + 3
+        while a['n'] == before and time.time() < end:
+            _cv.wait(timeout=0.2)
+        return jsonify({'ok': True, 'agent': name, 'level': a['level'], 'muted': a['muted']})

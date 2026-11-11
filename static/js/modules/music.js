@@ -1039,22 +1039,32 @@ function mzVolOffer(first) {
     if (!on.length) return;
     on.forEach(function (a) {
       var row = document.createElement('div'); row.className = 'mz-vol'; row.dataset.name = a.name;
-      row.innerHTML = '<span class="mz-vol-l"><b>' + escapeHtml(a.name) + ' volume</b><small class="mz-vol-n">' + (a.level == null ? '' : a.level + '%') + (a.muted ? ' · muted' : '') + '</small></span>' +
-        '<button type="button" class="mz-vol-b" data-vol="-5" aria-label="Volume down">\u2212</button><button type="button" class="mz-vol-b" data-vol="5" aria-label="Volume up">+</button>';
+      var lv = a.level == null ? 0 : Math.round(a.level / 2) * 2;
+      row.innerHTML = '<span class="mz-vol-l"><b>' + escapeHtml(a.name) + ' volume</b><small class="mz-vol-n">' + (a.level == null ? '' : lv + '%') + (a.muted ? ' \u00b7 muted' : '') + '</small></span>' +
+        '<input type="range" class="mz-vol-s" min="0" max="100" step="2" value="' + lv + '" aria-label="Volume" style="--p:' + lv + '%">';
       box.appendChild(row);
     });
   }).catch(function () {});
 }
-document.addEventListener('click', function (e) {
-  var b = e.target.closest && e.target.closest('.mz-vol-b'); if (!b) return;
-  e.stopPropagation(); e.preventDefault();
-  var row = b.closest('.mz-vol'), n = row.querySelector('.mz-vol-n'); mzHaptic('tick');
-  fetch('/api/volume/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: row.dataset.name, step: parseInt(b.dataset.vol, 10) }) })
+var mzVolBusy = false, mzVolNext = null;
+function mzVolSend(row, v) {                                     // latest position wins: while one request is out, only the newest value waits
+  if (mzVolBusy) { mzVolNext = { row: row, v: v }; return; }
+  mzVolBusy = true;
+  var n = row.querySelector('.mz-vol-n');
+  fetch('/api/volume/set', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: row.dataset.name, level: v }) })
     .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
     .then(function (x) {
       if (!x.ok) { mzToast(x.d.error === 'no laptop connected' ? 'Laptop not connected' : 'Could not change the volume'); return; }
-      if (n && x.d.level != null) n.textContent = x.d.level + '%' + (x.d.muted ? ' \u00b7 muted' : '');
-    }).catch(function () { mzToast('Could not reach the server'); });
+      if (n && x.d.level != null && !mzVolNext) n.textContent = x.d.level + '%' + (x.d.muted ? ' \u00b7 muted' : '');
+    }).catch(function () { mzToast('Could not reach the server'); })
+    .then(function () { mzVolBusy = false; var q = mzVolNext; mzVolNext = null; if (q) mzVolSend(q.row, q.v); });
+}
+document.addEventListener('input', function (e) {
+  var s = e.target; if (!s.classList || !s.classList.contains('mz-vol-s')) return;
+  var row = s.closest('.mz-vol'), v = parseInt(s.value, 10);
+  s.style.setProperty('--p', v + '%');
+  row.querySelector('.mz-vol-n').textContent = v + '%';
+  mzVolSend(row, v);
 }, true);
 
 // Put a saved session in place. Always paused unless asked to play.
