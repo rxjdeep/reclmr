@@ -908,7 +908,7 @@ function mzAhead() {
   }
 }
 function mzPlaySrc(t) {                                            // point the player at a song (the one place that does)
-  mz.fb = false; musicAudio.src = mzStreamUrl(t);
+  mz.fb = false; mz.t0 = { f: t.f, at: performance.now() }; musicAudio.src = mzStreamUrl(t);
   clearTimeout(mzPre.timer); mzPre.timer = setTimeout(mzAhead, 600);
 }
 function mzSetQuality(which, kbps) {                              // which: 'wifi' | 'cell'
@@ -1311,11 +1311,23 @@ function mzBindAudio() {
   // just sat there, silent, and after the one converted-copy retry an error ended the music for good. Now: note what happened (kept for
   // diagnosis: copy(localStorage.mzDiag) in the console), and when the position has not moved for 6 s while it should be playing, reload
   // the same song from where it was; a second failure within 30 s asks for the converted copy; a third gives up and says so.
-  var diag = [];
+  var diag = [], sendQ = [], sendT = 0;
+  function sendDiag() {                                  // stalls are reported to the server, which writes them to its journal
+    if (!sendQ.length) return;
+    var events = sendQ.splice(0, 20);
+    fetch('/api/music/diag', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dev: mzMe(), events: events }), keepalive: true }).catch(function () {});
+  }
+  // how long a song takes from being chosen to making sound: anything over 2.5 s is reported
+  musicAudio.addEventListener('playing', function () {
+    if (mz.t0 && mz.t0.f === (mzCur() || {}).f) { var dt = Math.round(performance.now() - mz.t0.at); if (dt > 2500) diagPush('slowstart', dt + 'ms'); mz.t0 = null; }
+  });
   function diagPush(ev, extra) {
     var a = musicAudio, t = mzCur();
-    diag.push({ t: new Date().toISOString().slice(11, 19), ev: ev, song: t ? t.f : '', pos: a ? Math.round(a.currentTime) : 0, rs: a ? a.readyState : 0, ns: a ? a.networkState : 0,
-      err: a && a.error ? a.error.code : 0, hid: document.hidden ? 1 : 0, x: extra || '' });
+    var c = navigator.connection || {};
+    var rec = { t: new Date().toISOString().slice(11, 19), ev: ev, song: t ? t.f : '', pos: a ? Math.round(a.currentTime) : 0, rs: a ? a.readyState : 0, ns: a ? a.networkState : 0,
+      err: a && a.error ? a.error.code : 0, hid: document.hidden ? 1 : 0, x: extra || '', net: (c.effectiveType || '') + (c.type ? '/' + c.type : ''), on: navigator.onLine ? 1 : 0 };
+    diag.push(rec);
+    if (ev === 'recover' || ev === 'slowstart' || ev === 'error' || ev === 'give-up') { sendQ.push(rec); clearTimeout(sendT); sendT = setTimeout(sendDiag, 1500); }
     if (diag.length > 60) diag.shift();
     try { localStorage.setItem('mzDiag', JSON.stringify(diag)); } catch (_) {}
   }
@@ -1328,7 +1340,7 @@ function mzBindAudio() {
     var now = Date.now(), pos = musicAudio.currentTime || 0;
     wd.tries = now - wd.lastTry < 30000 ? wd.tries + 1 : 1; wd.lastTry = now;
     diagPush('recover', why + ' #' + wd.tries);
-    if (wd.tries > 3) { if (typeof mzToast === 'function') mzToast('Playback stalled. Press play to try again'); mzSetPlayIcon(false); return; }
+    if (wd.tries > 3) { diagPush('give-up', why); if (typeof mzToast === 'function') mzToast('Playback stalled. Press play to try again'); mzSetPlayIcon(false); return; }
     mz.resumeAt = pos;
     if (wd.tries >= 2) mz.fb = true;
     // like closing and reopening the app: drop the element's current load completely, then start a new request (the number defeats a reused connection or saved answer)
@@ -1346,7 +1358,7 @@ function mzBindAudio() {
     if (moved) { wd.since = 0; return; }
     if (!wd.since) { wd.since = Date.now(); return; }
     // mid-song the sound should never just stop: react within 1.5 s. At the very start a song may be converting for a few seconds, so wait longer there.
-    if (Date.now() - wd.since >= (a.currentTime > 1 ? 1500 : 6000)) { wd.since = 0; recover('no progress, readyState ' + a.readyState); }
+    if (Date.now() - wd.since >= (a.currentTime > 1 ? 1500 : wd.tries ? 6000 : 3000)) { wd.since = 0; recover('no progress, readyState ' + a.readyState); }
   }, 500);
   musicAudio.addEventListener('ended', function () {
     var d = musicAudio.duration, c = musicAudio.currentTime;

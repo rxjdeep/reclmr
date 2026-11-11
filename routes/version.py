@@ -8,9 +8,20 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.32"
+VERSION = "0.8.33"
 
 CHANGELOG = [
+    {
+        "version": "0.8.33",
+        "date": "2026-11-11",
+        "changes": [
+            "Stalls and slow refresh: page load retries a hung connection after 4s, first stall retry at 3s, player reports stalls to the server log, cover requests limited so they cannot starve a song",
+            "sw: bounded page load with fresh retries",
+            "player: first retry for a song that never starts at 3s",
+            "player: stalls and slow starts reported to the server journal",
+            "server: at most 6 cover requests at once",
+        ]
+    },
     {
         "version": "0.8.32",
         "date": "2026-11-11",

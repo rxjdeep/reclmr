@@ -1,5 +1,5 @@
 // reclmr Service Worker
-const CACHE_NAME = 'reclmr-v371';
+const CACHE_NAME = 'reclmr-v372';
 
 self.addEventListener('install', e => {
   self.skipWaiting(); // activate immediately
@@ -33,7 +33,14 @@ self.addEventListener('fetch', e => {
 
   // The page itself: never cached. Always straight from the server, so every start is the current version.
   if (e.request.mode === 'navigate' && url.pathname === '/') {
-    e.respondWith(fetch(e.request, { cache: 'no-store' }));
+    // A hung connection used to hold the page for minutes (the browser's own time-out). Give each try a few seconds, then start a fresh one.
+    e.respondWith((async () => {
+      for (const ms of [4000, 4000, 15000]) {
+        const ac = new AbortController(), t = setTimeout(() => ac.abort(), ms);
+        try { const r = await fetch(e.request, { cache: 'no-store', signal: ac.signal }); clearTimeout(t); return r; } catch (_) { clearTimeout(t); }
+      }
+      return Response.error();
+    })());
     return;
   }
 

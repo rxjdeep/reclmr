@@ -1191,6 +1191,20 @@ def _artist_has_photo(aid):
     return ok
 
 
+_art_slots = threading.BoundedSemaphore(6)          # a grid asks for dozens of covers at once; more than a few at a time only slows the song that is playing
+
+
+@bp.route('/api/music/diag', methods=['POST'])
+def music_diag():
+    """The player reports stalls and slow starts, so they can be read in the journal (the phone's own log is out of reach)."""
+    b = request.get_json(silent=True) or {}
+    dev = str(b.get('dev') or '')[:30]
+    for e in (b.get('events') or [])[:30]:
+        if isinstance(e, dict):
+            print('[player] %s %s' % (dev, ' '.join('%s=%s' % (str(k)[:12], str(v)[:60]) for k, v in list(e.items())[:12])), flush=True)
+    return jsonify({'ok': True})
+
+
 @bp.route('/api/music/artwork/<path:ident>')
 @limiter.exempt
 def music_artwork(ident):
@@ -1217,7 +1231,8 @@ def music_artwork(ident):
             resp.headers['Cache-Control'] = 'private, max-age=3600'
             return resp
         size = min(1200, max(48, request.args.get('size', 300, type=int)))
-        return _nd_proxy('getCoverArt', {'id': ident, 'size': size}, cache='private, max-age=300' if ident.startswith('ar-') else 'private, max-age=86400')
+        with _art_slots:
+            return _nd_proxy('getCoverArt', {'id': ident, 'size': size}, cache='private, max-age=300' if ident.startswith('ar-') else 'private, max-age=86400')
     if ident.startswith('pl-'):                              # a playlist's own picture (no Navidrome: nothing else to fall back to)
         own = _artist_art_file('pl_' + ident[3:].split('_')[0], 'avatar')
         if own:
