@@ -2008,15 +2008,17 @@ def _report(dev, label, b, force=False):
         act = _effective_active(cur)
         playing = bool(b.get('playing'))
         if act and act != dev and not playing and not force:
+            print('[connect] report ignored from %s (active is %s): song=%s' % (dev, act, b.get('cur')), flush=True)
             return {'ok': True, 'ignored': True}        # a non-active device must not clobber the session
         st = dict(cur.get('state') or {})
         if q is not None:
             st['q'] = q
         queue = st.get('q') or []
-        if qi >= len(queue):
+        if qi >= len(queue) or (q is None and queue[qi] != b.get('cur')):
+            print('[connect] report stale from %s: song=%s qi=%s (server queue %d)' % (dev, b.get('cur'), qi, len(queue)), flush=True)
             return {'ok': False, 'stale': True}
-        if q is None and queue[qi] != b.get('cur'):
-            return {'ok': False, 'stale': True}
+        if b.get('cur') != (st.get('cur') or queue[qi]):
+            print('[connect] song change by %s: %s pos=%s playing=%s' % (dev, b.get('cur'), round(pos, 1), playing), flush=True)
         st.update(qi=qi, pos=round(pos, 1), playing=playing, sh=bool(b.get('sh')), rp=rp)
         if isinstance(b.get('cur'), str) and b['cur'] in queue:
             st['cur'] = b['cur']                               # the song itself, so a device taking over never has to trust an index into the queue

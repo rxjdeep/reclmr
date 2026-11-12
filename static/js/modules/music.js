@@ -1020,7 +1020,9 @@ function mzOnCmd(m) {
     }
     case 'takeover':
       mz.remote = false; mz.rs = null;
-      if (m.state && mzApplyState(m.state, { play: !!m.play })) { mzHaptic('success'); mzToast('Playing on this device'); }
+      var okT = m.state && mzApplyState(m.state, { play: !!m.play });
+      if (window.mzDiagPush) window.mzDiagPush('takeover', (okT ? 'ok ' : 'FAILED ') + (m.state && (m.state.cur || (m.state.q || [])[m.state.qi])) + ' @' + Math.round((m.state && m.state.pos) || 0));
+      if (okT) { mzHaptic('success'); mzToast('Playing on this device'); }
       mzUpdateRemoteUI(); break;
   }
 }
@@ -1381,11 +1383,12 @@ function mzBindAudio() {
     var rec = { t: new Date().toISOString().slice(11, 19), ev: ev, song: t ? t.f : '', pos: a ? Math.round(a.currentTime) : 0, rs: a ? a.readyState : 0, ns: a ? a.networkState : 0,
       err: a && a.error ? a.error.code : 0, hid: document.hidden ? 1 : 0, x: extra || '', net: (c.effectiveType || '') + (c.type ? '/' + c.type : ''), on: navigator.onLine ? 1 : 0 };
     diag.push(rec);
-    if (ev === 'recover' || ev === 'slowstart' || ev === 'error' || ev === 'give-up') { sendQ.push(rec); clearTimeout(sendT); sendT = setTimeout(sendDiag, 1500); }
+    if (ev === 'recover' || ev === 'slowstart' || ev === 'error' || ev === 'give-up' || ev === 'takeover') { sendQ.push(rec); clearTimeout(sendT); sendT = setTimeout(sendDiag, 1500); }
     if (diag.length > 60) diag.shift();
     try { localStorage.setItem('mzDiag', JSON.stringify(diag)); } catch (_) {}
   }
   window.mzDiag = function () { return diag.slice(); };
+  window.mzDiagPush = diagPush;
   ['waiting', 'stalled', 'emptied'].forEach(function (ev) { musicAudio.addEventListener(ev, function () { diagPush(ev); }); });
   musicAudio.addEventListener('pause', function () { diagPush('pause', musicAudio.ended ? 'ended' : ''); });
   var wd = { pos: -1, since: 0, tries: 0, lastTry: 0, song: '' };
