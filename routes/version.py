@@ -8,9 +8,18 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.42"
+VERSION = "0.8.43"
 
 CHANGELOG = [
+    {
+        "version": "0.8.43",
+        "date": "2026-11-12",
+        "changes": [
+            "A device that only mirrored another one now loads the right song when it takes over",
+            "Takeover compares with the song the audio element has loaded, not the one on screen",
+            "Play button loads the shown song if another one is loaded",
+        ]
+    },
     {
         "version": "0.8.42",
         "date": "2026-11-12",

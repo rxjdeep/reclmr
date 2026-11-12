@@ -294,7 +294,7 @@ function mzCloseSheet() { mzCloseMenu({ route: true }); }
 function mzMediaPlay() {
   if (mz.remote && mz.rs) { if (!mz.rs.st.playing) { mzCmd('play'); mzRemoteOptimistic(true); } return; }
   if (!musicAudio) return;
-  if (!musicAudio.src && mzCur()) mzStartCurrent(0);
+  if ((!musicAudio.src || (mzCur() && mz.srcId !== mzCur().f)) && mzCur()) mzStartCurrent(mz.rs && mz.rs.st ? mzRemotePos() : 0);      // nothing loaded, or the song on screen is not the one loaded
   mzTryPlay(null);
 }
 function mzMediaPause() {
@@ -783,9 +783,9 @@ function mzOnState(m) {
     // Then this device must catch up to what the server has, not carry on with an older song or sit silent.
     var sc = s.state.cur && s.state.q.indexOf(s.state.cur) >= 0 ? s.state.cur : s.state.q[s.state.qi], mine = mzCur();
     var justTook = Date.now() - (mz.tookAt || 0) < 8000;                       // the takeover message itself was just applied: its echo must not restart the song
-    if (newer && !justTook && mine && mine.f === sc && s.state.playing && musicAudio && musicAudio.paused) {
+    if (newer && !justTook && mine && mine.f === sc && mz.srcId === sc && s.state.playing && musicAudio && musicAudio.paused) {
       mzTryPlay(null);                                                         // right song, only silent: resume it where it is (no seek, no reload)
-    } else if (newer && !justTook && (!mine || mine.f !== sc)) {
+    } else if (newer && !justTook && (!mine || mine.f !== sc || mz.srcId !== sc)) {
       var st0 = Object.assign({}, s.state);
       if (st0.playing) st0.pos = (st0.pos || 0) + Math.max(0, m.now - s.updated);
       if (mzApplyState(st0, { play: !!st0.playing })) mzToast('Playing on this device');
@@ -940,7 +940,7 @@ function mzAhead() {
   }
 }
 function mzPlaySrc(t) {                                            // point the player at a song (the one place that does)
-  mz.fb = false; mz.t0 = { f: t.f, at: performance.now() }; musicAudio.src = mzStreamUrl(t);
+  mz.fb = false; mz.t0 = { f: t.f, at: performance.now() }; mz.srcId = t.f; musicAudio.src = mzStreamUrl(t);
   clearTimeout(mzPre.timer); mzPre.timer = setTimeout(mzAhead, 600);
 }
 function mzSetQuality(which, kbps) {                              // which: 'wifi' | 'cell'
@@ -1109,7 +1109,7 @@ function mzApplyState(st, opts) {
   var curId = st.cur && st.q.indexOf(st.cur) >= 0 ? st.cur : st.q[st.qi], tracks = st.q.map(function (id) { return mz.byId.get(id); }).filter(Boolean);
   var at = tracks.findIndex(function (t) { return t.f === curId; });
   if (at < 0) return false;                      // the track is gone from the library
-  var prev = mzCur(), sameTrack = prev && prev.f === curId && musicAudio && musicAudio.src;
+  var sameTrack = mz.srcId === curId && musicAudio && musicAudio.src;       // what the audio element has loaded, not what the screen shows (a device that only mirrored another one shows its song without having it)
   mz.queue = tracks; mz.qi = at; mz.origQueue = null;
   mz.shuffle = !!st.sh; mz.repeat = st.rp || 'off'; mz.playCtx = st.cx || null;
   if (!musicAudio) musicAudio = mzEl('music-audio');
