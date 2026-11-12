@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.41"
+VERSION = "0.8.42"
 
 CHANGELOG = [
+    {
+        "version": "0.8.42",
+        "date": "2026-11-12",
+        "changes": [
+            "High-resolution files (above 48 kHz) are served as a 48 kHz copy, so phones don't play them in slow motion",
+            "96/192 kHz songs are converted once to a 48 kHz 16-bit FLAC and cached",
+        ]
+    },
     {
         "version": "0.8.41",
         "date": "2026-11-12",

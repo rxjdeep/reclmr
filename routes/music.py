@@ -1047,6 +1047,32 @@ def _faststart(ident):
     return _cached(_TC_DIR / ('fs-' + name + ('.m4a' if mp4 else '.ogg')), make)
 
 
+_sr_known = {}                                             # path -> sample rate (Hz) of a local file
+
+
+def _sample_rate(path):
+    if path not in _sr_known:
+        try:
+            r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=sample_rate', '-of', 'csv=p=0', str(path)],
+                               capture_output=True, text=True, timeout=15)
+            _sr_known[path] = int(r.stdout.strip() or 0)
+        except (OSError, ValueError, subprocess.SubprocessError):
+            _sr_known[path] = 0
+    return _sr_known[path]
+
+
+def _lowrate(ident, src):
+    """A 48 kHz / 16-bit FLAC copy of a high-resolution file (96 or 192 kHz). Some phones play those at the wrong speed (slow motion), so they get this copy instead.
+    None when the song is 48 kHz or less, or the copy could not be made."""
+    if _sample_rate(src) <= 48000 or not shutil.which('ffmpeg'):
+        return None
+
+    def make(out):
+        cmd = ['ffmpeg', '-v', 'error', '-y', '-i', str(src), '-map', '0:a:0', '-vn', '-af', 'aresample=48000', '-sample_fmt', 's16', '-c:a', 'flac', '-f', 'flac', str(out)]
+        return subprocess.run(cmd, capture_output=True, timeout=300).returncode == 0
+    return _cached(_TC_DIR / ('sr-' + hashlib.md5(str(src).encode()).hexdigest()[:16] + '.flac'), make)
+
+
 def _send_cached(f, mimetype):
     resp = send_file(str(f), mimetype=mimetype, conditional=True)
     resp.headers['Cache-Control'] = 'private, max-age=3600'
@@ -1102,6 +1128,11 @@ def music_stream(ident):
                 resp.headers['X-Reclmr-Via'] = 'file'
                 return resp
             if local is not None:
+                lr = _lowrate(ident, local)
+                if lr is not None:
+                    resp = _send_cached(lr, 'audio/flac')
+                    resp.headers['X-Reclmr-Via'] = 'file'
+                    return resp
                 rel = _nd_paths.get(ident) if conf else ident
                 resp = _file_stream(rel)
                 resp.headers['X-Reclmr-Via'] = 'file'
