@@ -782,7 +782,10 @@ function mzOnState(m) {
     // "you are the active device" can arrive after a switch whose message never got here (a sleeping tab keeps a dead connection that looks open).
     // Then this device must catch up to what the server has, not carry on with an older song or sit silent.
     var sc = s.state.cur && s.state.q.indexOf(s.state.cur) >= 0 ? s.state.cur : s.state.q[s.state.qi], mine = mzCur();
-    if (newer && (!mine || mine.f !== sc || (s.state.playing && musicAudio && musicAudio.paused))) {
+    var justTook = Date.now() - (mz.tookAt || 0) < 8000;                       // the takeover message itself was just applied: its echo must not restart the song
+    if (newer && !justTook && mine && mine.f === sc && s.state.playing && musicAudio && musicAudio.paused) {
+      mzTryPlay(null);                                                         // right song, only silent: resume it where it is (no seek, no reload)
+    } else if (newer && !justTook && (!mine || mine.f !== sc)) {
       var st0 = Object.assign({}, s.state);
       if (st0.playing) st0.pos = (st0.pos || 0) + Math.max(0, m.now - s.updated);
       if (mzApplyState(st0, { play: !!st0.playing })) mzToast('Playing on this device');
@@ -1021,6 +1024,7 @@ function mzOnCmd(m) {
     case 'takeover':
       mz.remote = false; mz.rs = null;
       var okT = m.state && mzApplyState(m.state, { play: !!m.play });
+      if (okT) mz.tookAt = Date.now();
       if (window.mzDiagPush) window.mzDiagPush('takeover', (okT ? 'ok ' : 'FAILED ') + (m.state && (m.state.cur || (m.state.q || [])[m.state.qi])) + ' @' + Math.round((m.state && m.state.pos) || 0));
       if (okT) { mzHaptic('success'); mzToast('Playing on this device'); }
       mzUpdateRemoteUI(); break;
