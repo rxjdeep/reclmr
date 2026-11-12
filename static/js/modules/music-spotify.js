@@ -2168,7 +2168,7 @@ var mzSp = (function () {
     var sk = mzEl('sp-np-seek');
     function seekDur() { var t = mzCur(); return mz.remote ? (t && t.d) : ((musicAudio && isFinite(musicAudio.duration) && musicAudio.duration) || (t && t.d)); }
     sk.addEventListener('input', function () { mz.seeking = true; sk.style.setProperty('--p', sk.value / 10 + '%'); var d = seekDur(); if (d) mzEl('sp-np-cur').textContent = mzFmt(d * sk.value / 1000); });
-    sk.addEventListener('change', function () { var d = seekDur(); if (d) mzMediaSeekTo(d * sk.value / 1000); mz.seeking = false; mzHaptic('tick'); });
+    sk.addEventListener('change', function () { var d = seekDur(); if (d) mzMediaSeekTo(d * sk.value / 1000); if (mz.remote) mz.seeking = false; mzHaptic('tick'); });
     mzEl('sp-np-more').addEventListener('click', function (e) {
       e.stopPropagation();                                        // else the root click handler closes the menu straight away
       var t = mzCur(); if (!t) return;

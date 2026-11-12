@@ -304,10 +304,27 @@ function mzMediaPause() {
 function mzMediaSeekTo(sec) {
   if (!isFinite(sec) || sec < 0) return;
   if (mz.remote && mz.rs) { mzCmd('seek', sec); mz.rs.st.pos = sec; mz.rs.at = Date.now(); return; }
-  if (musicAudio) musicAudio.currentTime = sec;
+  mz.seekTarget = sec;
+  mzSeekLocal(sec);
+}
+// Seeks come in bursts (taps on skip, a finger sliding about): only the last one is sent to the audio element, so a single request is made
+// instead of a queue of them that each cancel the one before. The bar shows the target at once.
+var mzSeekT = 0;
+function mzSeekLocal(sec) {
+  if (!musicAudio) return;
+  mz.seeking = true;
+  var d = musicAudio.duration;
+  if (d && isFinite(d)) {
+    var pct = Math.min(100, sec / d * 100);
+    ['wm-seek', 'sp-np-seek'].forEach(function (id) { var e = mzEl(id); if (e) { e.value = Math.round(pct * 10); e.style.setProperty('--p', pct + '%'); } });
+    var c = mzEl('wm-cur'); if (c) c.textContent = mzFmt(sec);
+    c = mzEl('sp-np-cur'); if (c) c.textContent = mzFmt(sec);
+  }
+  clearTimeout(mzSeekT);
+  mzSeekT = setTimeout(function () { try { musicAudio.currentTime = sec; } catch (_) {} mz.seeking = false; mz.seekTarget = null; }, 220);
 }
 function mzMediaSeekBy(delta) {
-  var cur = mz.remote ? mzRemotePos() : (musicAudio ? musicAudio.currentTime : 0);
+  var cur = mz.remote ? mzRemotePos() : (musicAudio ? (mz.seeking && mz.seekTarget != null ? mz.seekTarget : musicAudio.currentTime) : 0);
   mzMediaSeekTo(Math.max(0, cur + delta));
 }
 
@@ -1389,13 +1406,15 @@ function mzBindAudio() {
   setInterval(function () {
     var a = musicAudio; if (!a || a.paused || a.ended || mz.remote || mz.seeking || !a.src) { wd.since = 0; return; }
     var t = mzCur(); if (!t) return;
-    if (wd.song !== t.f) { wd.song = t.f; wd.pos = -1; wd.since = 0; wd.tries = 0; }
-    var moved = Math.abs(a.currentTime - wd.pos) > 0.05;
+    if (wd.song !== t.f) { wd.song = t.f; wd.be = 0; wd.pos = -1; wd.since = 0; wd.tries = 0; }
+    var be = a.buffered.length ? a.buffered.end(a.buffered.length - 1) : 0, grew = be > (wd.be || 0) + 0.05;       // data still arriving counts as progress
+    wd.be = be;
+    var moved = Math.abs(a.currentTime - wd.pos) > 0.05 || grew;
     wd.pos = a.currentTime;
     if (moved) { wd.since = 0; return; }
     if (!wd.since) { wd.since = Date.now(); return; }
     // mid-song the sound should never just stop: react within 1.5 s. At the very start a song may be converting for a few seconds, so wait longer there.
-    if (Date.now() - wd.since >= (a.currentTime > 1 ? 1500 : wd.tries ? 6000 : 3000)) { wd.since = 0; recover('no progress, readyState ' + a.readyState); }
+    if (Date.now() - wd.since >= (a.seeking ? 12000 : a.currentTime > 1 ? 1500 : wd.tries ? 6000 : 3000)) { wd.since = 0; recover('no progress, readyState ' + a.readyState); }
   }, 500);
   musicAudio.addEventListener('ended', function () {
     var d = musicAudio.duration, c = musicAudio.currentTime;
@@ -1995,7 +2014,7 @@ function mzBindUI() {
   sk.addEventListener('change', function () {
     if (mz.remote) {
       var t = mzCur(); if (t && t.d) { var to = t.d * sk.value / 1000; mzCmd('seek', to); if (mz.rs) { mz.rs.st.pos = to; mz.rs.at = Date.now(); } }
-    } else if (musicAudio.duration) musicAudio.currentTime = musicAudio.duration * sk.value / 1000;
+    } else if (musicAudio.duration) { mz.seekTarget = musicAudio.duration * sk.value / 1000; mzSeekLocal(mz.seekTarget); mzHaptic('tick'); return; }
     mz.seeking = false; mzHaptic('tick');
   });
   var vol = mzEl('wm-vol');
