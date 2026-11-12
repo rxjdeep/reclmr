@@ -1297,7 +1297,21 @@ function mzBindAudio() {
     var d = mzEl('wm-dur'); if (d) d.textContent = mzFmt(musicAudio.duration);
     if (typeof updateMediaSessionPosition === 'function') updateMediaSessionPosition();
   };
+  // How far ahead is loaded (the seek bars draw it as a lighter stretch) and whether the player is waiting for data
+  function mzBuffered() {
+    var a = musicAudio, dur = a && a.duration;
+    if (!dur || !isFinite(dur)) return;
+    var end = 0, t = a.currentTime || 0, r = a.buffered;
+    for (var i = 0; i < r.length; i++) { if (r.start(i) <= t + 0.5 && r.end(i) > end) end = r.end(i); }
+    var b = Math.min(100, end / dur * 100) + '%';
+    ['wm-seek', 'sp-np-seek'].forEach(function (id) { var e = mzEl(id); if (e) e.style.setProperty('--b', b); });
+  }
+  function mzLoading(on) { ['wm-seek', 'sp-np-seek'].forEach(function (id) { var e = mzEl(id); if (e) e.classList.toggle('mz-loading', on); }); }
+  ['progress', 'loadedmetadata', 'seeked', 'canplay', 'durationchange'].forEach(function (ev) { musicAudio.addEventListener(ev, mzBuffered); });
+  ['waiting', 'loadstart', 'seeking'].forEach(function (ev) { musicAudio.addEventListener(ev, function () { mzLoading(true); }); });
+  ['playing', 'canplay', 'pause', 'emptied', 'error'].forEach(function (ev) { musicAudio.addEventListener(ev, function () { mzLoading(false); }); });
   musicAudio.ontimeupdate = function () {
+    mzBuffered();
     var dur = musicAudio.duration, cur = musicAudio.currentTime;
     if (!dur || !isFinite(dur)) return;
     if (!mz.seeking) {
@@ -1417,7 +1431,7 @@ function mzUpdateNow(quiet) {
   if (wA) wA.style.setProperty('--wm-amb', t.c ? 'url("' + mzCoverUrl(t.c, 240) + '")' : 'none');     // blurred backdrop behind the glossy glass panels
   if (mz.theme === 'spotify' && typeof mzSp !== 'undefined' && mzSp && mzSp.miniTint) mzSp.miniTint(t);
   mzEl('wm-dur').textContent = mzFmt(t.d); mzEl('wm-cur').textContent = '0:00';
-  var sk = mzEl('wm-seek'); sk.value = 0; sk.style.setProperty('--p', '0%');
+  var sk = mzEl('wm-seek'); sk.value = 0; sk.style.setProperty('--p', '0%'); sk.style.setProperty('--b', '0%');
   if (!quiet) {
     if (typeof updateMediaSessionMusic === 'function') updateMediaSessionMusic(t.t, t.ar, t.c ? mzCoverUrl(t.c, 512) : '');
     if (typeof setMediaSessionPlaying === 'function') setMediaSessionPlaying(true);

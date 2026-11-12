@@ -5698,7 +5698,7 @@ body.desktop-mode #music-screen { max-width: none; margin: 0; }
 .wm-seekrow span:first-child { text-align: right; }
 .wm-right { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .wm input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; height: 7px; border-radius: 4px; outline: none; cursor: pointer; border: 1px solid #000;
-  background: linear-gradient(90deg, rgba(var(--wm-glow), .95), #e9f0ff) 0 / var(--p, 0%) 100% no-repeat, linear-gradient(180deg, #050507, #1a1b20);
+  background: linear-gradient(90deg, rgba(var(--wm-glow), .95), #e9f0ff) 0 / var(--p, 0%) 100% no-repeat, linear-gradient(rgba(255,255,255,.22), rgba(255,255,255,.22)) 0 / var(--b, 0%) 100% no-repeat, linear-gradient(180deg, #050507, #1a1b20);
   box-shadow: inset 0 1px 2px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.1); }
 .wm input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255,255,255,.5);
   background: radial-gradient(circle at 50% 20%, #fff, #8d94a6 70%); box-shadow: 0 1px 3px #000, 0 0 8px rgba(var(--wm-glow), .5); }
@@ -6010,8 +6010,8 @@ body.desktop-mode #music-screen { max-width: none; margin: 0; }
 .wm[data-mzt="spotify"] .wm-seekrow { gap: 8px; color: #a7a7a7; font-size: 11px; }
 .wm[data-mzt="spotify"] .wm-seekrow span { width: 40px; }
 .wm[data-mzt="spotify"] .wm-right { gap: 8px; }
-.wm[data-mzt="spotify"] input[type=range] { height: 4px; border: 0; border-radius: 2px; box-shadow: none; background: linear-gradient(#fff, #fff) 0 / var(--p, 0%) 100% no-repeat, #4d4d4d; }
-.wm[data-mzt="spotify"] input[type=range]:hover { background: linear-gradient(var(--sp-green), var(--sp-green)) 0 / var(--p, 0%) 100% no-repeat, #4d4d4d; }
+.wm[data-mzt="spotify"] input[type=range] { height: 4px; border: 0; border-radius: 2px; box-shadow: none; background: linear-gradient(#fff, #fff) 0 / var(--p, 0%) 100% no-repeat, linear-gradient(#8a8a8a, #8a8a8a) 0 / var(--b, 0%) 100% no-repeat, #4d4d4d; }
+.wm[data-mzt="spotify"] input[type=range]:hover { background: linear-gradient(var(--sp-green), var(--sp-green)) 0 / var(--p, 0%) 100% no-repeat, linear-gradient(#8a8a8a, #8a8a8a) 0 / var(--b, 0%) 100% no-repeat, #4d4d4d; }
 .wm[data-mzt="spotify"] input[type=range]::-webkit-slider-thumb { width: 12px; height: 12px; border: 0; background: #fff; box-shadow: none; opacity: 0; }
 .wm[data-mzt="spotify"] input[type=range]:hover::-webkit-slider-thumb { opacity: 1; }
 .wm[data-mzt="spotify"] input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border: 0; background: #fff; }
@@ -6239,7 +6239,7 @@ body.desktop-mode #music-screen { max-width: none; margin: 0; }
 .wm[data-mzt="glossy"] .wm-play > svg { width: 24px; height: 24px; filter: none; }
 .wm[data-mzt="glossy"] .wm-ctl-skip > svg { width: 21px; height: 21px; }
 .wm[data-mzt="glossy"] input[type=range] { height: 5px; border: 0; border-radius: 3px; box-shadow: none;
-  background: linear-gradient(#fff, #fff) 0 / var(--p, 0%) 100% no-repeat, rgba(255,255,255,.26); }
+  background: linear-gradient(#fff, #fff) 0 / var(--p, 0%) 100% no-repeat, linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.5)) 0 / var(--b, 0%) 100% no-repeat, rgba(255,255,255,.26); }
 .wm[data-mzt="glossy"] input[type=range]::-webkit-slider-thumb { width: 12px; height: 12px; border: 0; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.55); opacity: 0; transition: opacity .15s; }
 .wm[data-mzt="glossy"] input[type=range]:hover::-webkit-slider-thumb, .wm[data-mzt="glossy"] input[type=range]:focus-visible::-webkit-slider-thumb { opacity: 1; }
 .wm[data-mzt="glossy"] input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border: 0; background: #fff; }
@@ -7167,3 +7167,7 @@ body.desktop-mode .home-title .ht-prompt { font-size: 17px; }
 .mz-vol-ticks i { --tc: #1db954; position: absolute; inset: 0; background-image: var(--minor), var(--major); background-repeat: repeat-x, repeat-x; background-position: 0 center, 0 center; background-size: calc((100% - 1px) / 50) 8px, calc((100% - 1px) / 10) 16px; clip-path: inset(0 calc(100% - ((100% - 1px) * var(--f, 0) + 1px)) 0 0); }
 .mz-vol-s { position: relative; }
 .mz-vol-s:active::-webkit-slider-thumb { transform: scale(1.25); }
+
+/* seek bar: --b is how much is loaded; the bar pulses while the player waits for data */
+input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
+@keyframes mzLoadPulse { 50% { opacity: .55; } }
