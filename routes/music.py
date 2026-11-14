@@ -1936,6 +1936,27 @@ def music_session_get():
     return jsonify({'session': data, 'now': time.time(), 'active': _effective_active(data)})
 
 
+def _end_session(dev):
+    """The device that was playing removed its last song: playback is over for good. The saved session goes, so no device (or reload) brings the old queue back."""
+    with _session_lock:
+        cur = _load_session()
+        if not cur or (cur.get('dev') != dev and _effective_active(cur) != dev):
+            return False                                   # someone else owns the session: not this device's to end
+        try:
+            _SESSION_FILE.unlink()
+        except OSError:
+            pass
+    print('[connect] session ended by %s' % dev, flush=True)
+    _broadcast({}, skip=dev)
+    return True
+
+
+@bp.route('/api/music/session', methods=['DELETE'])
+def music_session_end():
+    dev = str(request.args.get('dev') or '')[:60]
+    return jsonify({'ok': bool(dev) and _end_session(dev)})
+
+
 class _Bad(Exception):
     pass
 
@@ -2181,6 +2202,9 @@ def register(sock):
                     continue
                 elif t == 'ping':
                     _send(dev, {'t': 'pong'})
+                elif t == 'end':
+                    if not _conns.get(dev, {}).get('ctl'):
+                        _end_session(dev)
                 elif t == 'state':
                     if _conns.get(dev, {}).get('ctl'):
                         continue                       # controllers never report playback

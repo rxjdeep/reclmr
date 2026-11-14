@@ -1744,13 +1744,16 @@ window.addEventListener('popstate', function () {
   if (h && h.live) { h.live = false; h.onBack(); }
 });
 function mzUseSheet() { return typeof mzSp !== 'undefined' && !!mzSp && !!mzSp.menuSheet && mz.theme === 'spotify' && mzIsMobile(); }
+function mzEndSession() {                                      // tell the server nothing plays any more, or it hands the old queue back to this device
+  if (!mzSend({ t: 'end' })) fetch('/api/music/session?dev=' + encodeURIComponent(mzMe()), { method: 'DELETE', keepalive: true }).catch(function () {});
+}
 function mzQueueRemoveAt(c) {
   if (isNaN(c)) return;
   if (c === mz.qi) {                                           // the song that is playing: drop it and go on with the next one (or stop when it was the last)
     if (mz.remote) { var id0 = mz.queue[c] && mz.queue[c].f; mzCmd('next'); if (id0) setTimeout(function () { mzCmd('qremove', id0); }, 600); return; }
     var was = musicAudio && !musicAudio.paused;
     mz.queue.splice(c, 1);
-    if (!mz.queue.length) { mz.qi = -1; if (musicAudio) { musicAudio.pause(); musicAudio.removeAttribute('src'); musicAudio.load(); } mz.srcId = null; mzSaveState(true); mzRender(); return; }
+    if (!mz.queue.length) { mz.qi = -1; if (musicAudio) { musicAudio.pause(); musicAudio.removeAttribute('src'); musicAudio.load(); } mz.srcId = null; mzSaveState(true); mzEndSession(); mzRender(); return; }
     if (mz.qi >= mz.queue.length) mz.qi = 0;
     mzStart();
     if (!was) { try { musicAudio.pause(); } catch (_) {} }
