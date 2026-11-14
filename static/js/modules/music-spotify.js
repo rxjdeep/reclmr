@@ -956,6 +956,14 @@ var mzSp = (function () {
       (next.length ? '<h3>Next in queue</h3>' + next.map(function (t, n) { return qpRow(t, mz.qi + 1 + n); }).join('') : '<div class="sp-qp-empty">Nothing up next</div>') +
       (left > 0 ? '<button class="sp-qp-more" data-act="sp-qp-more">Show ' + Math.min(left, 60) + ' more (' + left + ' left)</button>' : '');
     list.scrollTop = keep;
+    if (!SP._qpProbed) {                                           // once per page: say what the panel looks like here (read in the server journal), for a button that does not show
+      SP._qpProbed = true;
+      try {
+        var x = list.querySelector('.qx'), r = x ? x.getBoundingClientRect() : null, cs = x ? getComputedStyle(x) : null;
+        fetch('/api/music/diag', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dev: mzMe().slice(-8), events: [{ ev: 'qpanel', rows: list.querySelectorAll('.sp-qp-row').length, qx: list.querySelectorAll('.qx').length,
+          box: r ? Math.round(r.x) + ',' + Math.round(r.width) + ',' + Math.round(r.height) : '-', css: cs ? cs.display + '/' + cs.opacity + '/' + cs.visibility : '-', list: Math.round(list.getBoundingClientRect().right), win: innerWidth }] }) }).catch(function () {});
+      } catch (_) {}
+    }
   };
   window.addEventListener('resize', function () { if (typeof SP !== 'undefined' && SP.qpSync) SP.qpSync(); });   // the panel appears/disappears at the 760px breakpoint
   SP.qpToggle = function () { mz.prefs.qp = !mz.prefs.qp; qpMax = 60; mzSavePrefs(); qpSig = ''; SP.qpSync(); };
