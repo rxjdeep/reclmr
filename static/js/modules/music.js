@@ -610,7 +610,7 @@ function mzRenderNow(content) {
     '<div class="wm-qlist"><h3><span>Now playing · ' + mz.queue.length + '</span><a data-act="q-clear">Clear</a></h3>' +
     upcoming.map(function (q, i) {
       return '<div class="wm-q' + (i === mz.qi ? ' playing' : '') + '" data-act="q-jump" data-c="' + i + '" data-t="' + escapeHtml(q.f) + '"><span class="num">' + (i + 1) + '</span>' +
-        '<div class="t"><div>' + escapeHtml(q.t) + '</div><small>' + escapeHtml(q.ar) + '</small></div><span class="len">' + mzFmt(q.d) + '</span>' + (i === mz.qi ? '' : '<button class="qx" data-act="q-remove" data-c="' + i + '" title="Remove from queue" aria-label="Remove from queue">×</button>') + '</div>';
+        '<div class="t"><div>' + escapeHtml(q.t) + '</div><small>' + escapeHtml(q.ar) + '</small></div><span class="len">' + mzFmt(q.d) + '</span>' + '<button class="qx" data-act="q-remove" data-c="' + i + '" title="Remove from queue" aria-label="Remove from queue">×</button>' + '</div>';
     }).join('') + '</div></div>';
   var cur = content.querySelector('.wm-q.playing');
   if (cur) cur.scrollIntoView({ block: 'center' });
@@ -1745,7 +1745,17 @@ window.addEventListener('popstate', function () {
 });
 function mzUseSheet() { return typeof mzSp !== 'undefined' && !!mzSp && !!mzSp.menuSheet && mz.theme === 'spotify' && mzIsMobile(); }
 function mzQueueRemoveAt(c) {
-  if (isNaN(c) || c === mz.qi) return;
+  if (isNaN(c)) return;
+  if (c === mz.qi) {                                           // the song that is playing: drop it and go on with the next one (or stop when it was the last)
+    if (mz.remote) { var id0 = mz.queue[c] && mz.queue[c].f; mzCmd('next'); if (id0) setTimeout(function () { mzCmd('qremove', id0); }, 600); return; }
+    var was = musicAudio && !musicAudio.paused;
+    mz.queue.splice(c, 1);
+    if (!mz.queue.length) { mz.qi = -1; if (musicAudio) { musicAudio.pause(); musicAudio.removeAttribute('src'); musicAudio.load(); } mz.srcId = null; mzSaveState(true); mzRender(); return; }
+    if (mz.qi >= mz.queue.length) mz.qi = 0;
+    mzStart();
+    if (!was) { try { musicAudio.pause(); } catch (_) {} }
+    return;
+  }
   if (mz.remote) { if (mz.queue[c]) mzCmd('qremove', mz.queue[c].f); return; }
   mz.queue.splice(c, 1); if (c < mz.qi) mz.qi--; mzSaveState(true); mzRender();
 }
