@@ -610,7 +610,7 @@ var mzSp = (function () {
       return '<div class="sp-row qrow compact' + (i === mz.qi ? ' playing' : '') + '" data-act="q-jump" data-c="' + i + '" data-t="' + esc(t.f) + '">' +
         '<span class="c0"><i class="n">' + (i === mz.qi ? '' : i + 1) + '</i><i class="eq"></i><button class="pl" data-act="q-jump" data-c="' + i + '">' + I.play + '</button></span>' +
         '<span class="c1">' + trackCov(t, 100, 'sm') + '<div class="tt"><b>' + esc(t.t) + '</b><small>' + artistLinks(t) + '</small></div></span>' +
-        '<span class="c-end"><time>' + mzFmt(t.d) + '</time></span></div>';
+        '<span class="c-end"><time>' + mzFmt(t.d) + '</time>' + (i === mz.qi ? '' : '<button class="qx" data-act="q-remove" data-c="' + i + '" title="Remove from queue" aria-label="Remove from queue">×</button>') + '</span></div>';
     }
     var next = mz.queue.slice(mz.qi + 1, mz.qi + 201);
     var out = '<div class="sp-page"><div class="sp-pbody">' + BACK + '<h1 class="sp-gridtitle">Queue</h1><h2 class="sp-h2">Now playing</h2><div class="sp-tbl compact">' + qrow(cur, mz.qi) + '</div>';

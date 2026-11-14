@@ -610,7 +610,7 @@ function mzRenderNow(content) {
     '<div class="wm-qlist"><h3><span>Now playing · ' + mz.queue.length + '</span><a data-act="q-clear">Clear</a></h3>' +
     upcoming.map(function (q, i) {
       return '<div class="wm-q' + (i === mz.qi ? ' playing' : '') + '" data-act="q-jump" data-c="' + i + '" data-t="' + escapeHtml(q.f) + '"><span class="num">' + (i + 1) + '</span>' +
-        '<div class="t"><div>' + escapeHtml(q.t) + '</div><small>' + escapeHtml(q.ar) + '</small></div><span class="len">' + mzFmt(q.d) + '</span></div>';
+        '<div class="t"><div>' + escapeHtml(q.t) + '</div><small>' + escapeHtml(q.ar) + '</small></div><span class="len">' + mzFmt(q.d) + '</span>' + (i === mz.qi ? '' : '<button class="qx" data-act="q-remove" data-c="' + i + '" title="Remove from queue" aria-label="Remove from queue">×</button>') + '</div>';
     }).join('') + '</div></div>';
   var cur = content.querySelector('.wm-q.playing');
   if (cur) cur.scrollIntoView({ block: 'center' });
@@ -1946,6 +1946,7 @@ function mzBindUI() {
       case 'q-jump':
         if (mz.remote) { if (mz.queue[c]) mzCmd('jump', mz.queue[c].f); } else { mz.qi = c; mzStart(); }
         break;
+      case 'q-remove': e.stopPropagation(); mzQueueRemoveAt(c); break;
       case 'q-clear':
         if (mz.remote) { mzCmd('qclear'); break; }
         mz.queue = mz.queue.slice(mz.qi, mz.qi + 1); mz.qi = mz.queue.length ? 0 : -1; mz.origQueue = null; mzSaveState(true); mzRender(); break;
