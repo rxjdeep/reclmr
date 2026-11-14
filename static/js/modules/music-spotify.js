@@ -937,7 +937,7 @@ var mzSp = (function () {
   function qpRow(t, i) {
     var on = i === mz.qi;
     return '<div class="sp-qp-row' + (on ? ' playing' : '') + '" data-act="q-jump" data-c="' + i + '" data-t="' + esc(t.f) + '">' + trackCov(t, 100, 'sm') +
-      '<div class="tt"><b>' + esc(t.t) + '</b><small>' + esc(t.ar) + '</small></div><time>' + mzFmt(t.d) + '</time></div>';
+      '<div class="tt"><b>' + esc(t.t) + '</b><small>' + esc(t.ar) + '</small></div><time>' + mzFmt(t.d) + '</time>' + (on ? '' : '<button class="qx" data-act="q-remove" data-c="' + i + '" title="Remove from queue" aria-label="Remove from queue">×</button>') + '</div>';
   }
   SP.qpSync = function () {
     var w = document.querySelector('#music-screen .wm'); if (!w) return;

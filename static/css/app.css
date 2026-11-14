@@ -7174,7 +7174,7 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 
 /* queue rows: a remove button that shows on hover (always on touch screens) */
 .qx { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font-size: 17px; line-height: 20px; cursor: pointer; opacity: 0; }
-.wm-q:hover .qx, .qrow:hover .qx, .qx:focus-visible { opacity: .75; }
+.wm-q:hover .qx, .qrow:hover .qx, .sp-qp-row:hover .qx, .qx:focus-visible { opacity: .75; }
 .qx:hover { opacity: 1 !important; background: rgba(255,255,255,.16); }
 .qrow .c-end .qx { margin-left: 12px; }
 @media (pointer: coarse) { .qx { opacity: .6; } }

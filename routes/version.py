@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.8.44"
+VERSION = "0.8.45"
 
 CHANGELOG = [
+    {
+        "version": "0.8.45",
+        "date": "2026-11-14",
+        "changes": [
+            "Remove button on the desktop queue side panel",
+            "The × now also shows on the Spotify-theme queue panel beside the page",
+        ]
+    },
     {
         "version": "0.8.44",
         "date": "2026-11-14",
