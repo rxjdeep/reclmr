@@ -32,6 +32,9 @@ def register_blueprints(app, sock):
     from .ollama import bp as ollama_bp
     app.register_blueprint(ollama_bp)
 
+    from .ask import bp as ask_bp
+    app.register_blueprint(ask_bp)
+
     from .comfy import bp as comfy_bp
     app.register_blueprint(comfy_bp)
 

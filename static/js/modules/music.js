@@ -564,15 +564,58 @@ async function mzLoadPlaylist(id) {
   if (mz.view.type === 'playlist' && mz.view.key === id) mzRender();
 }
 
+// ─── Ask the library in plain words ("show me all the punjabi songs i've got") ─────────
+// The server (routes/ask.py) turns the sentence into a filter and answers with the matching song ids; this shows them on the search page.
+function mzAskOn() { return !!(mz.ask && mz.ask.q === mz.query.trim()); }
+function mzAskMaybe(v) {                                           // Enter in the search box: a sentence is a question, one or two words stay a normal search
+  v = (v || '').trim(); if (v.split(/\s+/).length >= 3) mzAskRun(v);
+}
+function mzAskRun(q) {
+  q = (q || '').trim(); if (q.length < 2) return;
+  mz.ask = { q: q, loading: true }; mzRender();
+  fetch('/api/music/ask?q=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (d) {
+    if (!mz.ask || mz.ask.q !== q) return;
+    if (d.error) { mz.ask = { q: q, error: d.error }; } else {
+      mz.ask = { q: q, how: d.how, understood: d.understood, n: d.n, learning: d.learning, ms: d.ms,
+        songs: (d.ids || []).map(function (id) { return mz.byId.get(id); }).filter(Boolean) };
+    }
+    if (mz.view.type === 'search') mzRender();
+  }).catch(function () { if (mz.ask && mz.ask.q === q) { mz.ask = { q: q, error: 'Could not reach the server.' }; if (mz.view.type === 'search') mzRender(); } });
+}
+var mzAskWarmed = 0;
+function mzAskWarm() { if (Date.now() - mzAskWarmed > 20 * 60000) { mzAskWarmed = Date.now(); fetch('/api/music/ask/warm').catch(function () {}); } }
+function mzAskChip() {                                              // under a normal search: offer to ask it as a question
+  var q = mz.query.trim();
+  if (q.split(/\s+/).length < 2 || mzAskOn()) return '';
+  mzAskWarm();                                                     // a sentence is being typed: load the model now
+  return '<button class="mz-askchip" data-act="ask-run">✨ Ask AI: “' + escapeHtml(q) + '”</button>';
+}
+function mzAskBanner() {
+  var k = mz.ask, h = '<div class="mz-ask">';
+  if (k.loading) h += '<b>✨ Working it out…</b><span>The first question after a while takes a few seconds.</span>';
+  else if (k.error) h += '<b>✨ Could not answer</b><span>' + escapeHtml(k.error) + '</span>';
+  else {
+    h += '<b>✨ Showing: ' + escapeHtml(k.understood || '') + '</b><span>' + mzPlural(k.songs.length, 'song') + (k.how === 'words' ? ' · matched by words (the AI model is not running)' : '') + '</span>' +
+      (k.learning ? '<span class="mz-askl">Still learning your artists (' + k.learning.done + ' of ' + k.learning.total + '). Answers get better as it goes.</span>' : '');
+    if (k.songs.length) h += '<div class="mz-askb"><button data-act="ask-play">▶ Play</button><button data-act="ask-shuffle">Shuffle</button></div>';
+  }
+  return h + '<button class="mz-askx" data-act="ask-off">Normal search</button></div>';
+}
+function mzAskPlay(shuffle) { var k = mz.ask; if (k && k.songs && k.songs.length) mzPlayList(k.songs, 0, !!shuffle); }
+
 function mzSearchView() {
   var q = mz.query.trim().toLowerCase();
   if (!q) return { title: 'Search', sub: '', btns: [], html: '<div class="wm-empty">Type to search songs, artists and albums.</div>' };
+  if (mzAskOn()) {
+    var ak = mz.ask, as = ak.songs || [];
+    return { title: 'Search', sub: ak.loading ? '' : mzPlural(as.length, 'song') + ' found', btns: [], html: mzAskBanner() + (as.length ? mzTableHtml(as.slice(0, 1000), { album: true }) : '') };
+  }
   var terms = q.split(/\s+/);
   function hit(s) { return terms.every(function (t) { return s.indexOf(t) >= 0; }); }
   var songs = musicPlaylist.filter(function (t) { return hit(t.k); });
   var arts = Array.from(mz.artists.values()).filter(function (a) { return hit(a.name.toLowerCase()); }).slice(0, 5);
   var albs = Array.from(mz.albums.values()).filter(function (a) { return hit((a.name + ' ' + a.artist).toLowerCase()); }).slice(0, 8);
-  var html = '';
+  var html = mzAskChip();
   if (arts.length) html += mzLinkRows(['Artists', 'Albums', 'Songs'], arts.map(function (a) {
     return '<div class="wm-row link" data-act="artist" data-v="' + escapeHtml(a.id) + '"><span>' + escapeHtml(a.name) + '</span><span class="dim">' + a.albums.size + '</span><span class="dim">' + a.tracks.length + '</span></div>';
   }));
@@ -1953,6 +1996,10 @@ function mzBindUI() {
       case 'sort':
         mz.sort = mz.sort.col === v ? { col: v, dir: -mz.sort.dir } : { col: v, dir: 1 };
         mzRender(); break;
+      case 'ask-run': mzAskRun(mz.query); break;
+      case 'ask-play': mzAskPlay(false); break;
+      case 'ask-shuffle': mzAskPlay(true); break;
+      case 'ask-off': mz.ask = null; mzRender(); break;
       case 'play-all': mz.shuffle = false; mzUpdateModes(); mzPlayList(mz.ctx, 0); break;
       case 'shuffle-all': mzPlayList(mz.ctx, 0, true); break;
       case 'shuffle-lib': mzPlayList(musicPlaylist, 0, true); break;

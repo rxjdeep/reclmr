@@ -94,3 +94,5 @@ android/pusher/build/
 
 # music player data (playlists are .m3u8 files)
 playlists/
+ai_tags.json
+ai_tags.tmp

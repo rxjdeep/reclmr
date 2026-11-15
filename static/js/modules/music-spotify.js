@@ -421,6 +421,7 @@ var mzSp = (function () {
           (t.t ? '<img loading="lazy" alt="" src="' + esc(mzCoverUrl(t.t.c, 160)) + '" onerror="this.remove()">' : '') + '</div>';
       }).join('') + '</div></div></div>', hue: 220 };
     }
+    if (mzAskOn()) return { html: '<div class="sp-page"><div class="sp-pbody">' + mzAskBanner() + ((mz.ask.songs || []).length ? tableHtml(mz.ask.songs.slice(0, 1000), { album: true, cover: true }) : '') + '</div></div>', hue: 220 };
     var terms = qs.split(/\s+/);
     function hit(s) { return terms.every(function (t) { return s.indexOf(t) >= 0; }); }
     var songs = musicPlaylist.filter(function (t) { return hit(t.k); });
@@ -428,7 +429,7 @@ var mzSp = (function () {
     var albs = albumsArr().filter(function (a) { return hit((a.name + ' ' + a.artist).toLowerCase()); });
     var pls = mz.playlists.filter(function (p) { return hit((p.name || '').toLowerCase()); });
     var gens = Array.from(mz.genres.entries()).filter(function (g) { return hit(g[0].toLowerCase()); }).sort(function (a, b) { return b[1].length - a[1].length; });
-    if (!songs.length && !arts.length && !albs.length && !pls.length && !gens.length) return { html: '<div class="sp-page"><div class="sp-pbody"><div class="sp-empty"><h2>No results found for “' + esc(mz.query) + '”</h2><p>Please make sure your words are spelled correctly, or use fewer or different keywords.</p></div></div></div>', hue: 220 };
+    if (!songs.length && !arts.length && !albs.length && !pls.length && !gens.length) return { html: '<div class="sp-page"><div class="sp-pbody"><div class="sp-empty"><h2>No results found for “' + esc(mz.query) + '”</h2><p>Please make sure your words are spelled correctly, or use fewer or different keywords.</p>' + mzAskChip() + '</div></div></div>', hue: 220 };
 
     // one chip per kind of result (with how many), so each full list is one tap away
     var kinds = [['songs', 'Songs', songs.length], ['artists', 'Artists', arts.length], ['albums', 'Albums', albs.length], ['playlists', 'Playlists', pls.length], ['genres', 'Genres', gens.length]].filter(function (k) { return k[2]; });
@@ -436,6 +437,7 @@ var mzSp = (function () {
     var chips = '<div class="sp-chips sp-schips"><button class="sp-chip' + (srTab ? '' : ' on') + '" data-act="sp-stab" data-v="">All</button>' + kinds.map(function (k) {
       return '<button class="sp-chip' + (srTab === k[0] ? ' on' : '') + '" data-act="sp-stab" data-v="' + k[0] + '">' + k[1] + ' <span class="n">' + k[2] + '</span></button>';
     }).join('') + '</div>';
+    chips = mzAskChip() + chips;
     var CAP = 600;
     function capNote(n) { return n > CAP ? '<p class="sp-capnote">Showing the first ' + CAP + ' of ' + n + '. Search for something more specific to narrow it down.</p>' : ''; }
 

@@ -7177,3 +7177,15 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 .wm-q:hover .qx, .qrow:hover .qx, .sp-qp-row:hover .qx, .qx:focus-visible { opacity: .9; }
 .qx:hover { opacity: 1 !important; background: rgba(255,255,255,.18); }
 .qrow .c-end .qx { margin-left: 12px; }
+
+/* Ask the library in plain words */
+.mz-askchip { display: inline-block; margin: 8px 0 12px; padding: 7px 14px; border: 0; border-radius: 16px; background: rgba(120,140,255,.22); color: inherit; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.mz-askchip:hover { background: rgba(120,140,255,.36); }
+.mz-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 10px 0 14px; padding: 12px 14px; border-radius: 10px; background: rgba(120,140,255,.14); }
+.mz-ask b { font-size: 15px; }
+.mz-ask span { font-size: 12.5px; opacity: .75; }
+.mz-ask .mz-askl { flex-basis: 100%; }
+.mz-askb { display: flex; gap: 8px; margin-left: auto; }
+.mz-askb button, .mz-askx { padding: 6px 14px; border: 0; border-radius: 14px; background: rgba(255,255,255,.14); color: inherit; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.mz-askb button:hover, .mz-askx:hover { background: rgba(255,255,255,.26); }
+.mz-askx { opacity: .8; }
