@@ -15,7 +15,7 @@ CHANGELOG = [
         "version": "0.9.0",
         "date": "2026-11-15",
         "changes": [
-            "Ask your library in plain words: "show me all the punjabi songs i've got"",
+            "Ask your library in plain words: “show me all the punjabi songs i've got”",
             "Search page: ✨ Ask AI (or Enter on a sentence) lists the matching songs with Play and Shuffle",
             "Artists are tagged from MusicBrainz in the background (genres, country), songs also by the script of their title",
             "A small local model (Ollama, qwen2.5:3b) handles questions with not/years/liked/most played",
