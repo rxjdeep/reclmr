@@ -8,9 +8,17 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.9.0"
+VERSION = "0.9.1"
 
 CHANGELOG = [
+    {
+        "version": "0.9.1",
+        "date": "2026-11-15",
+        "changes": [
+            "Artist tagging for Ask starts by itself after the server boots",
+            "Resumes after a restart until every artist is tagged",
+        ]
+    },
     {
         "version": "0.9.0",
         "date": "2026-11-15",

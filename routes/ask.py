@@ -379,3 +379,14 @@ def music_ask_status():
     tracks, tags = _tracks(), _load()
     todo = len(_pending(tracks, tags))
     return jsonify({'artists_tagged': len(tags), 'artists_left': todo, 'job': dict(_job), 'model': _MODEL})
+
+
+def _boot_tagging():
+    if _start_enrich():
+        print('[ask] tagging artists from MusicBrainz in the background', flush=True)
+
+
+if 'pytest' not in __import__('sys').modules:                  # a minute after the server starts, pick up where the tagging stopped (nothing to do once it is finished)
+    _t = threading.Timer(60, _boot_tagging)
+    _t.daemon = True
+    _t.start()
