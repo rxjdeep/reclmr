@@ -126,3 +126,11 @@ def test_languages_pass_and_a_language_is_in_the_vocab_even_for_one_artist(monke
     ask._lang_pass(tags)                                            # not asked twice
     t = [{'f': 'z', 't': 'q', 'ar': 'X', 'as': [['A9', 'X']], 'al': '', 'y': '', 'g': ''}]
     assert 'punjabi' in ask._vocab(t, tags)
+
+
+def test_a_rare_language_survives_the_vocabulary_limit():
+    tracks = [{'f': 'x%d' % i, 't': 't', 'ar': 'a', 'as': [['B%d' % i, 'a'], ['B%d' % (i + 100), 'b']], 'al': '', 'y': '', 'g': ''} for i in range(40)]
+    tracks[0]['as'] = [['L1', 'x']]
+    tags = {'B%d' % i: {'tags': ['rock', 'tag%d' % (i % 30)]} for i in range(200)}
+    tags['L1'] = {'tags': ['punjabi'], 'lang': ['punjabi']}
+    assert 'punjabi' in ask._vocab(tracks, tags, limit=5)

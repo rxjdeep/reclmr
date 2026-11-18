@@ -90,7 +90,8 @@ def _vocab(tracks, tags, limit=140):
             seen.setdefault(tg, set()).update(_artist_ids(t) or [t['f']])
     langs = {l for v in tags.values() for l in v.get('lang', [])} | {n for _, n in _SCRIPTS}
     ranked = sorted(seen.items(), key=lambda kv: -len(kv[1]))
-    return [k for k, v in ranked if len(v) >= 2 or k in langs][:limit]
+    keep = [k for k, v in ranked if len(v) >= 2 or k in langs]
+    return [k for k in keep if k not in langs][:limit] + [k for k in keep if k in langs]        # every language stays, however few artists have it
 
 
 # ─── 1. tagging artists from MusicBrainz ───────────────────────────────────────────────────────
