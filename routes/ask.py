@@ -88,8 +88,9 @@ def _vocab(tracks, tags, limit=140):
     for t in tracks:
         for tg in _track_tags(t, tags):
             seen.setdefault(tg, set()).update(_artist_ids(t) or [t['f']])
+    langs = {l for v in tags.values() for l in v.get('lang', [])} | {n for _, n in _SCRIPTS}
     ranked = sorted(seen.items(), key=lambda kv: -len(kv[1]))
-    return [k for k, v in ranked if len(v) >= 2][:limit]
+    return [k for k, v in ranked if len(v) >= 2 or k in langs][:limit]
 
 
 # ─── 1. tagging artists from MusicBrainz ───────────────────────────────────────────────────────
@@ -132,8 +133,96 @@ def _enrich_job(todo):
                 _save(tags)
             time.sleep(_MB_GAP)
         _save(tags)
+        _wd_pass(tags)
+        _lang_pass(tags)
     finally:
         _job['running'] = False
+
+
+# Wikidata knows the languages and genres of many artists, and links to MusicBrainz by its id: one bulk question answers hundreds of artists.
+_WD_URL = 'https://query.wikidata.org/sparql'
+_WD_SKIP = {'american english', 'african american english', 'british english', 'australian english', 'canadian english'}
+
+
+def _wd_fetch(mbids):
+    vals = ' '.join('"%s"' % m for m in mbids if re.fullmatch(r'[0-9a-f-]{36}', m))
+    q = ('SELECT ?mbid ?langL ?genreL WHERE { VALUES ?mbid { %s } ?a wdt:P434 ?mbid . '
+         'OPTIONAL { ?a wdt:P1412 ?l . ?l rdfs:label ?langL FILTER(lang(?langL)="en") } '
+         'OPTIONAL { ?a wdt:P136 ?g . ?g rdfs:label ?genreL FILTER(lang(?genreL)="en") } }') % vals
+    r = requests.post(_WD_URL, data={'query': q}, headers={'User-Agent': _MB_UA, 'Accept': 'application/sparql-results+json'}, timeout=120)
+    r.raise_for_status()
+    out = {}
+    for b in r.json()['results']['bindings']:
+        e = out.setdefault(b['mbid']['value'], {'lang': set(), 'genre': set()})
+        if 'langL' in b and _norm(b['langL']['value']) not in _WD_SKIP:
+            e['lang'].add(_norm(b['langL']['value']))
+        if 'genreL' in b:
+            e['genre'].add(_norm(b['genreL']['value']))
+    return out
+
+
+def _wd_pass(tags):
+    """Add Wikidata's languages and genres to every artist that has a MusicBrainz id and has not had this pass yet."""
+    todo = {v['mb']: k for k, v in tags.items() if v.get('mb') and 'wd' not in v}
+    ids = list(todo)
+    for i in range(0, len(ids), 150):
+        try:
+            got = _wd_fetch(ids[i:i + 150])
+        except Exception:
+            time.sleep(10)
+            continue
+        for m in ids[i:i + 150]:
+            v = tags[todo[m]]
+            e = got.get(m, {'lang': set(), 'genre': set()})
+            v['wd'] = 1
+            v['lang'] = sorted(set(v.get('lang', [])) | e['lang'])
+            v['tags'] = list(dict.fromkeys(v.get('tags', []) + sorted(e['lang']) + sorted(e['genre'])))
+        time.sleep(2)
+    _save(tags)
+
+
+# MusicBrainz also records the language of every release (ISO 639-3). The share of an artist's releases in a language is the best sign of what they sing.
+_ISO = {'eng': 'english', 'hin': 'hindi', 'pan': 'punjabi', 'urd': 'urdu', 'jpn': 'japanese', 'kor': 'korean', 'spa': 'spanish', 'fra': 'french', 'fre': 'french',
+        'deu': 'german', 'ger': 'german', 'ita': 'italian', 'por': 'portuguese', 'rus': 'russian', 'zho': 'chinese', 'chi': 'chinese', 'cmn': 'chinese', 'ara': 'arabic',
+        'tam': 'tamil', 'tel': 'telugu', 'ben': 'bengali', 'mar': 'marathi', 'guj': 'gujarati', 'kan': 'kannada', 'mal': 'malayalam', 'tha': 'thai', 'tur': 'turkish',
+        'swe': 'swedish', 'nor': 'norwegian', 'dan': 'danish', 'nld': 'dutch', 'dut': 'dutch', 'pol': 'polish', 'fin': 'finnish', 'ukr': 'ukrainian', 'heb': 'hebrew',
+        'ind': 'indonesian', 'vie': 'vietnamese', 'fas': 'persian', 'per': 'persian', 'ell': 'greek', 'gre': 'greek', 'hun': 'hungarian', 'ces': 'czech', 'cze': 'czech',
+        'ron': 'romanian', 'rum': 'romanian', 'tgl': 'tagalog', 'asm': 'assamese', 'nep': 'nepali', 'sin': 'sinhala', 'lat': 'latin', 'yue': 'cantonese'}
+
+
+def _release_langs(mbid):
+    r = requests.get('https://musicbrainz.org/ws/2/release', params={'artist': mbid, 'fmt': 'json', 'limit': 100}, headers={'User-Agent': _MB_UA}, timeout=30)
+    if r.status_code != 200:
+        return None
+    count, total = {}, 0
+    for x in r.json().get('releases', []):
+        code = (x.get('text-representation') or {}).get('language')
+        if code and code != 'mul':
+            count[code] = count.get(code, 0) + 1
+            total += 1
+    # a language counts when it is a tenth of the releases, or three of them (so a one-album artist still gets theirs)
+    return sorted({_ISO[c] for c, n in count.items() if c in _ISO and (n >= 3 or n / max(total, 1) >= 0.1)})
+
+
+def _lang_pass(tags):
+    n = 0
+    for aid, v in tags.items():
+        if not v.get('mb') or 'rl' in v:
+            continue
+        try:
+            langs = _release_langs(v['mb'])
+        except Exception:
+            langs = None
+        time.sleep(_MB_GAP)
+        if langs is None:
+            continue
+        v['rl'] = 1
+        v['lang'] = sorted(set(v.get('lang', [])) | set(langs))
+        v['tags'] = list(dict.fromkeys(v.get('tags', []) + langs))
+        n += 1
+        if n % 25 == 0:
+            _save(tags)
+    _save(tags)
 
 
 def _pending(tracks, tags):
@@ -145,12 +234,17 @@ def _pending(tracks, tags):
     return list(names.items())
 
 
+def _needs_wd(tags):                                   # (the name is old: it means "a later pass is still to do")
+    return any(v.get('mb') and ('wd' not in v or 'rl' not in v) for v in tags.values())
+
+
 def _start_enrich():
     with _lock:
         if _job['running']:
             return False
-        todo = _pending(_tracks(), _load())
-        if not todo:
+        tg = _load()
+        todo = _pending(_tracks(), tg)
+        if not todo and not _needs_wd(tg):
             return False
         _job['running'] = True
     threading.Thread(target=_enrich_job, args=(todo,), daemon=True).start()

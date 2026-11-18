@@ -104,3 +104,25 @@ def test_a_name_that_is_also_a_tag_is_an_artist(client, auth_headers, monkeypatc
         assert r['ids'] == ['a6'] and 'by punk trap' in r['understood']
     finally:
         TRACKS.pop()
+
+
+def test_release_languages_become_artist_tags(monkeypatch):
+    class R:
+        status_code = 200
+
+        def json(self):
+            rel = [{'text-representation': {'language': 'pan'}}] * 20 + [{'text-representation': {'language': 'hin'}}] + [{'text-representation': {'language': 'mul'}}] * 4
+            return {'releases': rel}
+    monkeypatch.setattr(ask.requests, 'get', lambda *a, **k: R())
+    assert ask._release_langs('x') == ['punjabi']                  # 20 of 21 releases; one Hindi release is too few; "multiple" is no language
+
+
+def test_languages_pass_and_a_language_is_in_the_vocab_even_for_one_artist(monkeypatch):
+    monkeypatch.setattr(ask, '_release_langs', lambda m: ['punjabi'])
+    monkeypatch.setattr(ask, '_MB_GAP', 0)
+    tags = {'A9': {'tags': ['india'], 'mb': '0' * 36, 'n': 'X'}}
+    ask._lang_pass(tags)
+    assert tags['A9']['lang'] == ['punjabi'] and 'punjabi' in tags['A9']['tags'] and tags['A9']['rl'] == 1
+    ask._lang_pass(tags)                                            # not asked twice
+    t = [{'f': 'z', 't': 'q', 'ar': 'X', 'as': [['A9', 'X']], 'al': '', 'y': '', 'g': ''}]
+    assert 'punjabi' in ask._vocab(t, tags)
