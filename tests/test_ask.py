@@ -134,3 +134,10 @@ def test_a_rare_language_survives_the_vocabulary_limit():
     tags = {'B%d' % i: {'tags': ['rock', 'tag%d' % (i % 30)]} for i in range(200)}
     tags['L1'] = {'tags': ['punjabi'], 'lang': ['punjabi']}
     assert 'punjabi' in ask._vocab(tracks, tags, limit=5)
+
+
+def test_a_featured_artist_does_not_give_a_song_their_tags():
+    tags = {'a1': {'tags': ['hindi']}, 'a2': {'tags': ['punjabi']}}
+    song = {'f': 'x', 'as': [['a1', 'Main'], ['a2', 'Feature']]}
+    assert 'hindi' in ask._track_tags(song, tags)
+    assert 'punjabi' not in ask._track_tags(song, tags)

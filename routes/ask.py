@@ -73,12 +73,13 @@ def _script_tags(t):
 
 
 def _track_tags(t, tags):
-    """Everything a song can be found by: its artists' tags, its own genre and the script of its title."""
+    """Everything a song can be found by: its main artist's tags, its own genre and the script of its title."""
     out = set(_script_tags(t))
     if t.get('g'):
         out.add(_norm(t['g']))
-    for aid in _artist_ids(t):
-        out.update(tags.get(aid, {}).get('tags', []))
+    ids = _artist_ids(t)
+    if ids:                                                                  # the main artist decides; a feature does not turn a Hindi song Punjabi
+        out.update(tags.get(ids[0], {}).get('tags', []))
     return out
 
 
