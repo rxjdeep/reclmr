@@ -2038,6 +2038,18 @@ def _validate_report(b):
     return pos, qi, rp, q
 
 
+def _clean_ab(v):
+    """The A–B loop of the song: [start, end] in seconds, or [start, None] while the end is not chosen yet."""
+    try:
+        if isinstance(v, list) and len(v) == 2:
+            a = float(v[0]); e = None if v[1] is None else float(v[1])
+            if 0 <= a < 1e6 and (e is None or a < e < 1e6):
+                return [round(a, 2), None if e is None else round(e, 2)]
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
 def _clean_ctx(b):
     """The playlist/album/artist a queue was started from: {'k', 'v'} or None."""
     cx = b.get('cx')
@@ -2071,7 +2083,7 @@ def _report(dev, label, b, force=False):
             return {'ok': False, 'stale': True}
         if b.get('cur') != (st.get('cur') or queue[qi]):
             print('[connect] song change by %s: %s pos=%s playing=%s' % (dev, b.get('cur'), round(pos, 1), playing), flush=True)
-        st.update(qi=qi, pos=round(pos, 1), playing=playing, sh=bool(b.get('sh')), rp=rp)
+        st.update(qi=qi, pos=round(pos, 1), playing=playing, sh=bool(b.get('sh')), rp=rp, ab=_clean_ab(b.get('ab')))
         if isinstance(b.get('cur'), str) and b['cur'] in queue:
             st['cur'] = b['cur']                               # the song itself, so a device taking over never has to trust an index into the queue
         else:

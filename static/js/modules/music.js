@@ -329,9 +329,10 @@ function mzMediaSeekBy(delta) {
 }
 
 // ─── A–B loop (like mpv's "l"): first press marks the start, second the end and loops between them, third clears ──────────────
-var mzAbT = 0;
+// The loop is part of the session (like repeat): any device can set it, the device that is playing enforces it, and every device shows it.
+function mzAbFrom(v) { return v && isFinite(v[0]) ? { a: +v[0], b: v[1] == null || !isFinite(v[1]) ? null : +v[1] } : null; }
 function mzAbPaint() {
-  var ab = mz.ab, d = musicAudio && musicAudio.duration, ok = ab && d && isFinite(d);
+  var ab = mz.ab, t = mzCur(), d = mz.remote ? (t && t.d) : (musicAudio && isFinite(musicAudio.duration) && musicAudio.duration) || (t && t.d), ok = ab && d;
   var la = ok ? Math.min(100, ab.a / d * 100) : 0, lb = ok ? (ab.b != null ? Math.min(100, ab.b / d * 100) : Math.min(100, la + 0.5)) : 0;
   ['wm-seek', 'sp-np-seek'].forEach(function (id) { var e = mzEl(id); if (e) { e.style.setProperty('--la', la + '%'); e.style.setProperty('--lb', lb + '%'); } });
   ['wm-ab', 'sp-np-ab'].forEach(function (id) {
@@ -341,24 +342,28 @@ function mzAbPaint() {
     e.title = !ab ? 'Loop part of the song: press at the start, then at the end' : ab.b == null ? 'Press again at the end of the part to loop' : 'Looping ' + mzFmt(ab.a) + ' – ' + mzFmt(ab.b) + ' · press to clear';
   });
 }
-function mzAbClear() { mz.ab = null; clearInterval(mzAbT); mzAbT = 0; mzAbPaint(); }
+function mzAbClear() { mz.ab = null; mzAbPaint(); }                 // a new song starts without one
+function mzAbSet(ab) {
+  mz.ab = ab; mzAbPaint();
+  if (mz.remote) mzCmd('loop', ab ? [ab.a, ab.b] : null); else mzSaveState(true);
+}
 function mzAbPress() {
-  if (mz.remote) { mzToast('The loop works on the device that is playing'); return; }
-  if (!musicAudio || !musicAudio.src || !mzCur()) return;
-  var cur = mz.seeking && mz.seekTarget != null ? mz.seekTarget : musicAudio.currentTime;
-  if (!mz.ab) { mz.ab = { a: cur, b: null }; mzToast('Loop start ' + mzFmt(cur) + ' · press again at the end'); }
+  if (!mzCur()) return;
+  if (mz.remote) { if (!mz.rs) return; }
+  else if (!musicAudio || !musicAudio.src) return;
+  var cur = mz.remote ? mzRemotePos() : (mz.seeking && mz.seekTarget != null ? mz.seekTarget : musicAudio.currentTime);
+  if (!mz.ab) { mzAbSet({ a: cur, b: null }); mzToast('Loop start ' + mzFmt(cur) + ' · press again at the end'); }
   else if (mz.ab.b == null) {
     if (cur - mz.ab.a < 0.5) { mzToast('Pick a point after the start (' + mzFmt(mz.ab.a) + ')'); return; }
-    mz.ab.b = cur; mzToast('Looping ' + mzFmt(mz.ab.a) + ' – ' + mzFmt(cur));
-    clearInterval(mzAbT); mzAbT = setInterval(mzAbTick, 60);
-  } else { mzAbClear(); mzToast('Loop off'); return; }
-  mzAbPaint();
+    mzAbSet({ a: mz.ab.a, b: cur }); mzToast('Looping ' + mzFmt(mz.ab.a) + ' – ' + mzFmt(cur));
+  } else { mzAbSet(null); mzToast('Loop off'); }
 }
 function mzAbTick() {
   var ab = mz.ab, a = musicAudio;
-  if (!ab || ab.b == null || !a || mz.seeking || a.paused || mz.remote) { if (!ab) { clearInterval(mzAbT); mzAbT = 0; } return; }
+  if (!ab || ab.b == null || !a || mz.seeking || a.paused || mz.remote) return;
   if (a.currentTime >= ab.b && a.currentTime < ab.b + 1.5) { try { a.currentTime = ab.a; } catch (_) {} }      // played up to the end of the part: back to its start (a seek past it is left alone)
 }
+setInterval(mzAbTick, 60);
 
 // ─── help for first-time users (glossy theme) ────────────
 function mzToggleHelp(e) {
@@ -742,7 +747,7 @@ function mzSnapshot() {
   return {
     q: q.map(function (t) { return t.f; }), qi: mz.qi - from,
     pos: musicAudio && isFinite(musicAudio.currentTime) ? Math.round(musicAudio.currentTime * 10) / 10 : 0,
-    playing: !!(musicAudio && !musicAudio.paused), sh: mz.shuffle, rp: mz.repeat, cx: mz.playCtx || null,
+    playing: !!(musicAudio && !musicAudio.paused), sh: mz.shuffle, rp: mz.repeat, cx: mz.playCtx || null, ab: mz.ab ? [mz.ab.a, mz.ab.b] : null,
   };
 }
 function mzSaveState(force) {
@@ -764,7 +769,7 @@ function mzBody() {
   var st = mzSnapshot(), cur = mzCur();
   var sig = mzQueueSig(), full = sig !== mzLastSig;
   var from = full ? Math.max(0, mz.qi - 100) : mzSnapFrom;        // index offset stays fixed between full pushes
-  var body = { dev: mzMe(), label: mzDeviceLabel(), cur: cur.f, qi: mz.qi - from, pos: st.pos, playing: st.playing, sh: st.sh, rp: st.rp, cx: st.cx };
+  var body = { dev: mzMe(), label: mzDeviceLabel(), cur: cur.f, qi: mz.qi - from, pos: st.pos, playing: st.playing, sh: st.sh, rp: st.rp, cx: st.cx, ab: st.ab };
   if (full) body.q = mz.queue.slice(from, from + 1500).map(function (t) { return t.f; });
   return { body: body, sig: sig, from: from };
 }
@@ -892,6 +897,7 @@ function mzApplyRemote(st) {
   mz.queue = tracks; mz.qi = at; mz.origQueue = null;
   mz.shuffle = !!st.sh; mz.repeat = st.rp || 'off'; mz.playCtx = st.cx || null;
   musicCurrentIdx = mzCur().i;
+  mz.ab = mzAbFrom(st.ab); mzAbPaint();
   if (!prev || prev.f !== mzCur().f || mz.view.type === 'now') mzUpdateNow(true);
   else { mzUpdateModes(); mzSyncHeart(); }
   mzSetPlayIcon(!!st.playing);
@@ -1070,6 +1076,7 @@ function mzOnCmd(m) {
     case 'prev': prevSong(); break;
     case 'seek': if (isFinite(m.v)) { musicAudio.currentTime = m.v; mzSaveState(true); } break;
     case 'shuffle': if (mz.shuffle !== !!m.v) mzToggleShuffle(); break;
+    case 'loop': mz.ab = mzAbFrom(m.v); mzAbPaint(); mzSaveState(true); break;
     case 'repeat': mz.repeat = m.v === 'all' || m.v === 'one' ? m.v : 'off'; mzUpdateModes(); mzSaveState(true); break;
     case 'vol': mz.prefs.vol = Math.max(0, Math.min(1, +m.v || 0)); mz.prefs.muted = false; mzSavePrefs(); mzApplyVolume(); break;
     case 'jump': {
@@ -1197,6 +1204,7 @@ function mzApplyState(st, opts) {
     mz.counted = false; mz.resumeAt = pos;
     mzPlaySrc(t);
   }
+  mz.ab = mzAbFrom(st.ab); mzAbPaint();                  // the loop belongs to the session: it moves with the song
   mzLastSig = tracks.length === st.q.length ? mzQueueSig() : '';   // if tracks went missing the indexes differ: resend in full
   mzSnapFrom = 0;
   mzUpdateNow();
