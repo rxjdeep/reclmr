@@ -328,6 +328,38 @@ function mzMediaSeekBy(delta) {
   mzMediaSeekTo(Math.max(0, cur + delta));
 }
 
+// ─── A–B loop (like mpv's "l"): first press marks the start, second the end and loops between them, third clears ──────────────
+var mzAbT = 0;
+function mzAbPaint() {
+  var ab = mz.ab, d = musicAudio && musicAudio.duration, ok = ab && d && isFinite(d);
+  var la = ok ? Math.min(100, ab.a / d * 100) : 0, lb = ok ? (ab.b != null ? Math.min(100, ab.b / d * 100) : Math.min(100, la + 0.5)) : 0;
+  ['wm-seek', 'sp-np-seek'].forEach(function (id) { var e = mzEl(id); if (e) { e.style.setProperty('--la', la + '%'); e.style.setProperty('--lb', lb + '%'); } });
+  ['wm-ab', 'sp-np-ab'].forEach(function (id) {
+    var e = mzEl(id); if (!e) return;
+    e.classList.toggle('on', !!ab); e.setAttribute('aria-pressed', ab ? 'true' : 'false');
+    e.textContent = !ab ? 'A–B' : ab.b == null ? 'A→' : 'A⟲B';
+    e.title = !ab ? 'Loop part of the song: press at the start, then at the end' : ab.b == null ? 'Press again at the end of the part to loop' : 'Looping ' + mzFmt(ab.a) + ' – ' + mzFmt(ab.b) + ' · press to clear';
+  });
+}
+function mzAbClear() { mz.ab = null; clearInterval(mzAbT); mzAbT = 0; mzAbPaint(); }
+function mzAbPress() {
+  if (mz.remote) { mzToast('The loop works on the device that is playing'); return; }
+  if (!musicAudio || !musicAudio.src || !mzCur()) return;
+  var cur = mz.seeking && mz.seekTarget != null ? mz.seekTarget : musicAudio.currentTime;
+  if (!mz.ab) { mz.ab = { a: cur, b: null }; mzToast('Loop start ' + mzFmt(cur) + ' · press again at the end'); }
+  else if (mz.ab.b == null) {
+    if (cur - mz.ab.a < 0.5) { mzToast('Pick a point after the start (' + mzFmt(mz.ab.a) + ')'); return; }
+    mz.ab.b = cur; mzToast('Looping ' + mzFmt(mz.ab.a) + ' – ' + mzFmt(cur));
+    clearInterval(mzAbT); mzAbT = setInterval(mzAbTick, 60);
+  } else { mzAbClear(); mzToast('Loop off'); return; }
+  mzAbPaint();
+}
+function mzAbTick() {
+  var ab = mz.ab, a = musicAudio;
+  if (!ab || ab.b == null || !a || mz.seeking || a.paused || mz.remote) { if (!ab) { clearInterval(mzAbT); mzAbT = 0; } return; }
+  if (a.currentTime >= ab.b && a.currentTime < ab.b + 1.5) { try { a.currentTime = ab.a; } catch (_) {} }      // played up to the end of the part: back to its start (a seek past it is left alone)
+}
+
 // ─── help for first-time users (glossy theme) ────────────
 function mzToggleHelp(e) {
   if (e) e.stopPropagation();
@@ -983,7 +1015,7 @@ function mzAhead() {
   }
 }
 function mzPlaySrc(t) {                                            // point the player at a song (the one place that does)
-  mz.fb = false; mz.t0 = { f: t.f, at: performance.now() }; mz.srcId = t.f; musicAudio.src = mzStreamUrl(t);
+  mz.fb = false; mz.t0 = { f: t.f, at: performance.now() }; mz.srcId = t.f; musicAudio.src = mzStreamUrl(t); if (mz.ab) mzAbClear();
   clearTimeout(mzPre.timer); mzPre.timer = setTimeout(mzAhead, 600);
 }
 function mzSetQuality(which, kbps) {                              // which: 'wifi' | 'cell'
@@ -1374,6 +1406,7 @@ function mzBindAudio() {
   }
   function mzLoading(on) { ['wm-seek', 'sp-np-seek'].forEach(function (id) { var e = mzEl(id); if (e) e.classList.toggle('mz-loading', on); }); }
   ['progress', 'loadedmetadata', 'seeked', 'canplay', 'durationchange'].forEach(function (ev) { musicAudio.addEventListener(ev, mzBuffered); });
+  musicAudio.addEventListener('durationchange', function () { if (mz.ab) mzAbPaint(); });
   ['waiting', 'loadstart', 'seeking'].forEach(function (ev) { musicAudio.addEventListener(ev, function () { mzLoading(true); }); });
   ['playing', 'canplay', 'pause', 'emptied', 'error'].forEach(function (ev) { musicAudio.addEventListener(ev, function () { mzLoading(false); }); });
   musicAudio.ontimeupdate = function () {
@@ -1481,6 +1514,7 @@ function mzBindAudio() {
   };
   musicAudio.loop = mz.repeat === 'one';
   musicAudio.onended = function () {
+    if (mz.ab && mz.ab.b != null && !mz.remote) { try { musicAudio.currentTime = mz.ab.a; } catch (_) {} mzTryPlay(null); return; }
     if (mz.repeat === 'one') { musicAudio.currentTime = 0; musicAudio.play(); return; }
     mzAdvance(true);
   };
@@ -2121,6 +2155,7 @@ function mzBindUI() {
     else if (e.key === 'n') nextSong();
     else if (e.key === 'q' && mz.theme === 'spotify' && typeof mzSp !== 'undefined' && mzSp && mzSp.npBtn) mzSp.npBtn();
     else if (e.key === 'p') prevSong();
+    else if (e.key === 'l' || e.key === 'L') mzAbPress();
   });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) mzVizStart(); });
   mzSetPlayIcon(false); mzUpdateModes(); mzApplyVolume(); mzApplyTheme();
