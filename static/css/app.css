@@ -7194,3 +7194,22 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 .wm-ab { font: 700 11px/1 system-ui, sans-serif; letter-spacing: .02em; white-space: nowrap; }
 .sp-np-ctl button.ab { width: 40px; font: 700 12px/1 system-ui, sans-serif; letter-spacing: .02em; }
 .wm-menu-sep { height: 1px; margin: 4px 8px; background: rgba(255,255,255,.12); }
+
+/* lyrics editor */
+.mz-lyred { position: fixed; inset: 0; z-index: 9500; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.6); }
+.mz-lyred-p { width: min(680px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 14px; background: #1c1c20; color: #f2f2f2; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.mz-lyred-h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.mz-lyred-h b { display: block; font-size: 18px; }
+.mz-lyred-h small { display: block; margin-top: 2px; color: rgba(255,255,255,.6); overflow-wrap: anywhere; }
+.mz-lyred textarea { flex: 1; min-height: 240px; height: 46vh; resize: vertical; padding: 10px 12px; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; background: #121214; color: inherit; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.mz-lyred-tools, .mz-lyred-f { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mz-lyred-f span { flex: 1; }
+.mz-lyred-shift { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; color: rgba(255,255,255,.65); font-size: 13px; }
+.mz-lyred-note { margin: 0; font-size: 12px; color: rgba(255,255,255,.55); }
+.mz-lyred button { padding: 8px 12px; border: 0; border-radius: 8px; background: rgba(255,255,255,.12); color: inherit; font: inherit; font-size: 14px; cursor: pointer; }
+.mz-lyred button:hover { background: rgba(255,255,255,.2); }
+.mz-lyred button.pri { background: #1db954; color: #000; font-weight: 700; }
+.mz-lyred button.ghost { background: transparent; text-decoration: underline; padding-left: 0; }
+.mz-lyred button[hidden] { display: none; }
+.sp-lv-edit { margin-left: auto; padding: 8px 14px; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; background: transparent; color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+.sp-lv-edit:hover { background: rgba(255,255,255,.12); }

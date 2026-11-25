@@ -431,6 +431,74 @@ document.addEventListener('click', function (e) {
 }, true);
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { document.addEventListener(ev, function () { clearTimeout(mz.abLP); }, true); });
 
+// ─── lyrics editor: fix the words or the timing of a song's lyrics (saved on the server; "Back to original" removes the edit) ───
+function mzLrcTs(ms) {
+  ms = Math.max(0, Math.round(ms)); var m = Math.floor(ms / 60000), sc = (ms % 60000) / 1000;
+  return '[' + (m < 10 ? '0' : '') + m + ':' + (sc < 10 ? '0' : '') + sc.toFixed(2) + ']';
+}
+var MZ_TS = /\[(\d+):(\d+)(?:[.:](\d+))?\]/g;
+function mzLrcMs(m) { return +m[1] * 60000 + +m[2] * 1000 + (m[3] ? Math.round(+('0.' + m[3]) * 1000) : 0); }
+function mzLyricsEdit(t) {
+  if (!t || mzEl('mz-lyred')) return;
+  var el = document.createElement('div'); el.id = 'mz-lyred'; el.className = 'mz-lyred'; el.dataset.mzt = mz.theme;
+  el.innerHTML = '<div class="mz-lyred-p" role="dialog" aria-modal="true" aria-label="Edit lyrics"><div class="mz-lyred-h"><div><b>Edit lyrics</b><small>' + escapeHtml(t.t) + '</small></div><button type="button" data-lye="close" aria-label="Close">✕</button></div>' +
+    '<textarea id="mz-lyred-t" spellcheck="false" autocomplete="off" placeholder="Loading…" disabled></textarea>' +
+    '<div class="mz-lyred-tools"><button type="button" data-lye="stamp" title="Put the song\'s current time on this line (Ctrl+Enter)">⏱ Stamp line</button><button type="button" data-lye="play" title="Play from this line">▶ This line</button>' +
+    '<span class="mz-lyred-shift">Shift all <button type="button" data-lye="shift" data-d="-1000">−1s</button><button type="button" data-lye="shift" data-d="-250">−¼s</button><button type="button" data-lye="shift" data-d="250">+¼s</button><button type="button" data-lye="shift" data-d="1000">+1s</button></span></div>' +
+    '<p class="mz-lyred-note">One line per row. A time in front ([01:23.45]) makes the lyrics follow the song. With no times at all they show as plain text; if only some lines have one, the others are left out.</p>' +
+    '<div class="mz-lyred-f"><button type="button" class="ghost" data-lye="reset" hidden>Back to original</button><span></span><button type="button" data-lye="close">Cancel</button><button type="button" class="pri" data-lye="save">Save</button></div></div>';
+  document.body.appendChild(el);
+  var ta = mzEl('mz-lyred-t');
+  function pos() { return (mz.remote ? mzRemotePos() : (musicAudio ? musicAudio.currentTime : 0)) * 1000; }
+  function line() {                                                                    // [start, end] of the line the caret is on
+    var v = ta.value, a = ta.selectionStart, s0 = v.lastIndexOf('\n', a - 1) + 1, e = v.indexOf('\n', a); return [s0, e < 0 ? v.length : e];
+  }
+  function close() { document.removeEventListener('keydown', onKey, true); el.remove(); }
+  function onKey(e) {
+    if (e.key === 'Escape') { e.stopPropagation(); close(); }
+    else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); act('stamp'); }
+  }
+  function act(a, btn) {
+    var v = ta.value;
+    if (a === 'close') close();
+    else if (a === 'stamp') {
+      var r = line(), txt = v.slice(r[0], r[1]).replace(/^(\s*\[\d+:\d+(?:[.:]\d+)?\])+\s*/, '');
+      var ins = mzLrcTs(pos()) + ' ' + txt, nv = v.slice(0, r[0]) + ins + v.slice(r[1]), at = r[0] + ins.length + 1;
+      if (at > nv.length) nv += '\n';
+      ta.value = nv; ta.focus(); ta.setSelectionRange(Math.min(at, nv.length), Math.min(at, nv.length));
+    } else if (a === 'play') {
+      var rr = line(), m = MZ_TS.exec(v.slice(rr[0], rr[1])); MZ_TS.lastIndex = 0;
+      if (m) { mzMediaSeekTo(mzLrcMs(m) / 1000); if (!mz.remote && musicAudio && musicAudio.paused) mzMediaPlay(); } else mzToast('This line has no time yet');
+    } else if (a === 'shift') {
+      var d = +btn.dataset.d;
+      ta.value = v.split('\n').map(function (ln) { return ln.replace(MZ_TS, function (_, mm, ss, fr) { return mzLrcTs(+mm * 60000 + +ss * 1000 + (fr ? Math.round(+('0.' + fr) * 1000) : 0) + d); }); }).join('\n');
+    } else if (a === 'save') {
+      var rows = v.split('\n').filter(function (x) { return x.trim() && !/^\[[a-zA-Z]+:.*\]$/.test(x.trim()); }), timed = rows.filter(function (x) { MZ_TS.lastIndex = 0; return MZ_TS.test(x); });
+      MZ_TS.lastIndex = 0;
+      if (timed.length && timed.length < rows.length && !confirm((rows.length - timed.length) + ' line(s) have no time and will not be shown. Save anyway?')) return;
+      btn.disabled = true;
+      fetch('/api/music/lyrics/' + encodeURIComponent(t.f), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: ta.value }) })
+        .then(function (r) { if (!r.ok) throw new Error(); mzToast('Lyrics saved'); if (typeof mzSp !== 'undefined' && mzSp && mzSp.lyricsBust) mzSp.lyricsBust(t.f); close(); })
+        .catch(function () { btn.disabled = false; mzToast('Could not save the lyrics'); });
+    } else if (a === 'reset') {
+      if (!confirm('Go back to the original lyrics for this song?')) return;
+      fetch('/api/music/lyrics/' + encodeURIComponent(t.f), { method: 'DELETE' })
+        .then(function (r) { if (!r.ok) throw new Error(); mzToast('Original lyrics restored'); if (typeof mzSp !== 'undefined' && mzSp && mzSp.lyricsBust) mzSp.lyricsBust(t.f); close(); })
+        .catch(function () { mzToast('Could not restore the lyrics'); });
+    }
+  }
+  el.addEventListener('click', function (e) {
+    if (e.target === el) { close(); return; }
+    var b = e.target.closest && e.target.closest('[data-lye]'); if (b) act(b.dataset.lye, b);
+  });
+  document.addEventListener('keydown', onKey, true);
+  fetch('/api/music/lyrics/' + encodeURIComponent(t.f)).then(function (r) { return r.json(); }).then(function (d) {
+    ta.value = (d.lines || []).map(function (l) { return (l[0] == null ? '' : mzLrcTs(l[0]) + ' ') + l[1]; }).join('\n');
+    ta.disabled = false; ta.placeholder = '[00:12.30] words of the line'; ta.focus();
+    var rb = el.querySelector('[data-lye="reset"]'); if (rb && d.edited) rb.hidden = false;
+  }).catch(function () { ta.disabled = false; ta.placeholder = '[00:12.30] words of the line'; });
+}
+
 // ─── help for first-time users (glossy theme) ────────────
 function mzToggleHelp(e) {
   if (e) e.stopPropagation();
@@ -1925,9 +1993,9 @@ function mzOpenMenu(x, y, id, fromQueue, qIdx) {
   }
   var addPl = typeof mzSp !== 'undefined' && mzSp && mzSp.addMenu ? it('addpl', 'Add to playlist') : '';
   m.innerHTML = (sp ? it('queue', 'Add to queue') + it('next', 'Play next') + addPl + '<hr>' + artistItems() + (t.li ? it('album', 'Go to album') : '') + '<hr>' +
-      it('fav', t.fav ? 'Remove from Liked Songs' : 'Save to your Liked Songs') + (fromQueue ? it('remove', 'Remove from queue') : '')
+      it('fav', t.fav ? 'Remove from Liked Songs' : 'Save to your Liked Songs') + it('lyrics', 'Edit lyrics') + (fromQueue ? it('remove', 'Remove from queue') : '')
     : it('play', 'Play') + it('next', 'Play next') + it('queue', 'Add to queue') + addPl + '<hr>' +
-      it('fav', t.fav ? 'Remove from favorites' : 'Add to favorites') + '<hr>' +
+      it('fav', t.fav ? 'Remove from favorites' : 'Add to favorites') + it('lyrics', 'Edit lyrics') + '<hr>' +
       artistItems() + (t.li ? it('album', 'Go to album') : '') + (fromQueue ? '<hr>' + it('remove', 'Remove from queue') : ''));
   m.style.display = '';
   var r = m.getBoundingClientRect();
@@ -2123,6 +2191,8 @@ function mzBindUI() {
       case 'm-queue': if (t) mzQueueAdd(t); mzCloseMenu(); break;
       case 'm-addpl': mzCloseMenu(); if (t && typeof mzSp !== 'undefined' && mzSp.addMenu) mzSp.addMenu(null, t, {}); break;
       case 'm-fav': if (t) mzToggleFav(t); mzCloseMenu(); break;
+      case 'm-lyrics': mzCloseMenu(); if (t) mzLyricsEdit(t); break;
+      case 'lyr-edit': mzLyricsEdit(mzCur()); break;
       case 'm-artist': mzCloseMenu(); if (v || t) mzGo('artist', v || t.ai || t.ar); break;
       case 'm-album': mzCloseMenu(); if (t) mzGo('album', t.li); break;
       case 'm-remove':

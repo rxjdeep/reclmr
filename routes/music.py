@@ -1842,6 +1842,11 @@ def _read_lrc(song):
         text = f.read_text(encoding='utf-8-sig', errors='replace')
     except OSError:
         return None
+    return _parse_lrc(text)
+
+
+def _parse_lrc(text):
+    """{synced, lines} from LRC text ([01:23.45] words), or None. Without time stamps the lines are plain text."""
     timed, plain = [], []
     for raw in text.splitlines():
         stamps = list(_LRC_TIME.finditer(raw))
@@ -1857,11 +1862,67 @@ def _read_lrc(song):
     return {'synced': False, 'lines': plain} if plain else None
 
 
+_EDIT_DIR = _APP_DIR / 'lyrics_edits'                  # lyrics the user wrote or fixed in the app: they win over every other source
+
+
+def _edit_file(tid):
+    return _EDIT_DIR / (hashlib.sha1(tid.encode('utf-8')).hexdigest()[:20] + '.json')
+
+
+def _edited_lyrics(tid):
+    """{synced, lines, edited} the user saved for a song, or None. An empty list means "no lyrics for this song"."""
+    try:
+        c = json.loads(_edit_file(tid).read_text())
+        lines = c.get('lines') or []
+        return {'synced': bool(c.get('synced')) and bool(lines), 'lines': lines, 'edited': True}
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+@bp.route('/api/music/lyrics/<path:tid>', methods=['POST'])
+def music_lyrics_save(tid):
+    """Save edited lyrics (LRC text: [01:23.45] words, or plain lines) for a song. Empty text = the song has no lyrics."""
+    if _bad_id(tid):
+        return jsonify({'error': 'bad id'}), 400
+    text = (request.get_json(silent=True) or {}).get('text')
+    if not isinstance(text, str) or len(text) > 200_000:
+        return jsonify({'error': 'bad request'}), 400
+    got = _parse_lrc(text) or {'synced': False, 'lines': []}
+    try:
+        _EDIT_DIR.mkdir(exist_ok=True)
+        f = _edit_file(tid)
+        tmp = f.with_suffix('.tmp')
+        tmp.write_text(json.dumps({'at': time.time(), **got}, ensure_ascii=False))
+        tmp.replace(f)
+    except OSError:
+        return jsonify({'error': 'could not save'}), 500
+    _lyr_cache.pop(tid, None)
+    return jsonify({**got, 'edited': True})
+
+
+@bp.route('/api/music/lyrics/<path:tid>', methods=['DELETE'])
+def music_lyrics_reset(tid):
+    """Back to the lyrics the files / LRCLIB have."""
+    if _bad_id(tid):
+        return jsonify({'error': 'bad id'}), 400
+    try:
+        _edit_file(tid).unlink()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        return jsonify({'error': 'could not reset'}), 500
+    _lyr_cache.pop(tid, None)
+    return jsonify({'ok': True})
+
+
 @bp.route('/api/music/lyrics/<path:tid>')
 def music_lyrics(tid):
     """{synced, lines: [[start ms or null, text], ...]} for a song; empty when none can be found."""
     if _bad_id(tid):
         return jsonify({'error': 'bad id'}), 400
+    mine = _edited_lyrics(tid)
+    if mine is not None:
+        return jsonify(mine)
     hit = _lyr_cache.get(tid)
     if hit and time.time() - hit[0] < 3600:
         return jsonify(hit[1])

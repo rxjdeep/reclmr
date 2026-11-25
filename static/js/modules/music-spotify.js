@@ -1263,7 +1263,7 @@ var mzSp = (function () {
     lyrPageF = t.f;
     setTimeout(function () { lyrPage(t); lyrWatch(); }, 0);
     return { html: '<div class="sp-page sp-lyricspage" id="sp-page"><div class="sp-pbody"><div class="sp-lv-top">' + cov(t.c, t.h, t.al || t.t, 240, '') +
-      '<div><h1>' + esc(t.t) + '</h1><p>' + esc(t.ar || '') + '</p></div></div><div class="sp-lv-body" id="sp-lv-body"><p class="sp-lv-msg">Loading lyrics…</p></div></div></div>', tint: t.c, hue: mzHue(t.ar || t.t) };
+      '<div><h1>' + esc(t.t) + '</h1><p>' + esc(t.ar || '') + '</p></div><button type="button" class="sp-lv-edit" data-act="lyr-edit">Edit lyrics</button></div><div class="sp-lv-body" id="sp-lv-body"><p class="sp-lv-msg">Loading lyrics…</p></div></div></div>', tint: t.c, hue: mzHue(t.ar || t.t) };
   }
   function lyrPage(t) {
     function show(d) {
@@ -1287,6 +1287,10 @@ var mzSp = (function () {
       if (c && c.f !== lyrPageF) mzRender(); else lyrSync();                   // a new song: rebuild the page; otherwise just move the highlight
     }, 300);
   }
+  SP.lyricsBust = function (f) {                                 // lyrics of this song were edited: show the new ones
+    delete lyrCache[f]; var c = mzCur();
+    if (c && c.f === f) { lyrLoad(c); if (mz.view.type === 'lyrics') mzRender(); }
+  };
   SP.lyricsToggle = function () { if (mz.view.type === 'lyrics') history.back(); else mzGo('lyrics'); };
 
   function npCards(t) {
@@ -1650,6 +1654,8 @@ var mzSp = (function () {
     items.push({ sep: true });
     if (t.li) items.push({ icon: MI.album, label: 'Go to album', sub: t.al || '', run: function () { mzGo('album', t.li); } });
     cr.forEach(function (c) { items.push({ icon: MI.person, label: cr.length > 1 ? 'Go to ' + c.name : 'Go to artist', sub: cr.length > 1 ? '' : c.name, run: function () { mzGo('artist', c.id); } }); });
+    items.push({ sep: true });
+    items.push({ icon: MI.queue, label: 'Edit lyrics', run: function () { mzLyricsEdit(t); } });
     if (npIsOpen && mzCur() && mzCur().f === t.f) {                // from the full-screen player: show or hide the live lyric line
       var lyrOn = mz.prefs.lyr !== false;
       items.push({ sep: true });
