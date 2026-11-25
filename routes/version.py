@@ -8,9 +8,18 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.11.0"
+VERSION = "0.11.1"
 
 CHANGELOG = [
+    {
+        "version": "0.11.1",
+        "date": "2026-11-26",
+        "changes": [
+            "Tag fixer: new files are found by name, not modification time; can fix named files",
+            "A copy of the library gives every file the same modification time, so the watcher now remembers which files it has seen",
+            "pass file names to fix just those",
+        ]
+    },
     {
         "version": "0.11.0",
         "date": "2026-11-26",
