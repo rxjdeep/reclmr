@@ -96,3 +96,8 @@ android/pusher/build/
 playlists/
 ai_tags.json
 ai_tags.tmp
+
+tagfix_state.json
+tagfix_state.tmp
+tagfix.log
+tagfix_keep.txt

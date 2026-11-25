@@ -8,9 +8,20 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.10.1"
+VERSION = "0.11.0"
 
 CHANGELOG = [
+    {
+        "version": "0.11.0",
+        "date": "2026-11-26",
+        "changes": [
+            "Tag fixer: a watcher that separates the artists in new songs",
+            "scripts/tagfix_watcher.py rewrites A/B, A, B, feat. and vs. artist tags to A",
+            "B on new files",
+            "every change is logged so it can be undone",
+            "keep-list for names like AC/DC",
+        ]
+    },
     {
         "version": "0.10.1",
         "date": "2026-11-24",

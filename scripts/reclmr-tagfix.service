@@ -1,0 +1,11 @@
+[Unit]
+Description=reclmr: separate the artists in the tags of new songs
+
+[Service]
+ExecStart=%h/reclmr/.venv/bin/python %h/reclmr/scripts/tagfix_watcher.py
+Nice=10
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target
