@@ -499,6 +499,47 @@ function mzLyricsEdit(t) {
   }).catch(function () { ta.disabled = false; ta.placeholder = '[00:12.30] words of the line'; });
 }
 
+// ─── library health: what is wrong with the tags, and buttons for what can be fixed ───
+function mzHealthOpen() {
+  if (mzEl('mz-health')) return;
+  var el = document.createElement('div'); el.id = 'mz-health'; el.className = 'mz-lyred mz-health'; el.dataset.mzt = mz.theme;
+  el.innerHTML = '<div class="mz-lyred-p" role="dialog" aria-modal="true" aria-label="Library health"><div class="mz-lyred-h"><div><b>Library health</b><small id="mz-health-sub">Checking your library…</small></div><button type="button" data-hf="close" aria-label="Close">✕</button></div>' +
+    '<div class="mz-health-body" id="mz-health-body"></div><div class="mz-lyred-f"><span></span><button type="button" data-hf="again">Check again</button><button type="button" data-hf="close">Close</button></div></div>';
+  document.body.appendChild(el);
+  function close() { document.removeEventListener('keydown', onKey, true); el.remove(); }
+  function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
+  function load() {
+    var body = mzEl('mz-health-body'), sub = mzEl('mz-health-sub'); if (!body) return;
+    body.innerHTML = '<p class="mz-health-msg">Checking…</p>';
+    fetch('/api/music/health').then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'failed'); return d; }); }).then(function (d) {
+      if (!mzEl('mz-health-body')) return;
+      sub.textContent = d.songs + ' songs checked at ' + new Date(d.checked * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      body.innerHTML = d.groups.map(function (g) {
+        var items = g.items.map(function (i) { return '<li><b>' + escapeHtml(i.t) + '</b>' + (i.ar ? ' <span>' + escapeHtml(i.ar) + '</span>' : '') + (i.to ? ' <em>→ ' + escapeHtml(i.to) + '</em>' : '') + (i.where ? ' <em>' + escapeHtml(i.n + ' copies: ' + i.where.join(', ')) + '</em>' : '') + '</li>'; }).join('');
+        return '<section class="mz-health-g' + (g.count ? '' : ' ok') + '"><div class="mz-health-gh"><b>' + escapeHtml(g.title) + '</b><span class="mz-health-n">' + (g.count ? g.count : '✓') + '</span>' +
+          (g.count && g.fixable ? '<button type="button" class="pri" data-hf="fix" data-k="' + g.kind + '" data-n="' + g.count + '">Fix</button>' : '') + '</div>' +
+          (g.count ? '<p>' + escapeHtml(g.help) + '</p><ul>' + items + '</ul>' + (g.count > g.items.length ? '<small>and ' + (g.count - g.items.length) + ' more</small>' : '') : '<p>Nothing to fix.</p>') + '</section>';
+      }).join('');
+    }).catch(function (e) { if (mzEl('mz-health-body')) { sub.textContent = ''; body.innerHTML = '<p class="mz-health-msg">' + escapeHtml(e.message || 'Could not check the library.') + '</p>'; } });
+  }
+  el.addEventListener('click', function (e) {
+    if (e.target === el) { close(); return; }
+    var b = e.target.closest && e.target.closest('[data-hf]'); if (!b) return;
+    var a = b.dataset.hf;
+    if (a === 'close') close();
+    else if (a === 'again') load();
+    else if (a === 'fix') {
+      if (!confirm('Rewrite the tags of the files that need this fix? Nothing in the audio changes, and every change is written to tagfix.log so it can be undone.')) return;
+      b.disabled = true; b.textContent = 'Fixing…';
+      fetch('/api/music/health/fix/' + encodeURIComponent(b.dataset.k), { method: 'POST' }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'failed'); return d; }); })
+        .then(function (d) { mzToast(d.changed + ' tag' + (d.changed === 1 ? '' : 's') + ' fixed · Navidrome is re-reading the files, albums can take a few minutes to update'); load(); })
+        .catch(function (err) { mzToast('Could not fix: ' + (err.message || 'error')); load(); });
+    }
+  });
+  document.addEventListener('keydown', onKey, true);
+  load();
+}
+
 // ─── help for first-time users (glossy theme) ────────────
 function mzToggleHelp(e) {
   if (e) e.stopPropagation();
@@ -2075,7 +2116,7 @@ function mzThemeMenu(e) {
     var th = [{ label: 'Glossy Black', on: mz.theme === 'glossy', run: function () { mzSetTheme('glossy'); } }, { label: 'Spotify Classic', on: mz.theme === 'spotify' && mz.skin !== 'modern', run: function () { mzSetTheme('spotify'); } }, { label: 'Spotify Modern', on: mz.theme === 'spotify' && mz.skin === 'modern', run: function () { mzSetTheme('modern'); } }];
     if (typeof navigator.vibrate === 'function' && (mz.coarse || /Android/i.test(navigator.userAgent))) { th.push({ sep: true }); th.push({ label: 'Vibration feedback', on: mz.prefs.haptics !== false, run: function () { mzToggleHaptics(); } }); }
     th.push({ sep: true }); th.push({ label: 'Back to recl/\\mr', run: function () { goHome(); } });
-    th.unshift({ label: 'Streaming quality', sub: mzQualityLabel(), run: function () { setTimeout(mzQualityMenu, 330); } }, { sep: true });
+    th.unshift({ label: 'Streaming quality', sub: mzQualityLabel(), run: function () { setTimeout(mzQualityMenu, 330); } }, { label: 'Library health', sub: 'Check and fix tags', run: function () { setTimeout(mzHealthOpen, 330); } }, { sep: true });
     mzSp.menuSheet({ title: 'Settings', items: th });
     return;
   }
@@ -2083,7 +2124,7 @@ function mzThemeMenu(e) {
   function it(v, label, on) { return '<button data-act="theme" data-v="' + v + '">' + (on ? '✓ ' : '\u2003') + label + '</button>'; }
   m.innerHTML = '<div class="wm-menu-h">Theme</div>' + it('glossy', 'Glossy Black', mz.theme === 'glossy') + it('spotify', 'Spotify Classic', mz.theme === 'spotify' && mz.skin !== 'modern') + it('modern', 'Spotify Modern', mz.theme === 'spotify' && mz.skin === 'modern') +
     (typeof navigator.vibrate === 'function' && (mz.coarse || /Android/i.test(navigator.userAgent)) ? '<hr><button data-act="haptics">' + (mz.prefs.haptics === false ? '\u2003' : '✓ ') + 'Vibration feedback</button>' : '') +
-    '<hr><button data-act="quality">Streaming quality…</button>' +
+    '<hr><button data-act="quality">Streaming quality…</button><button data-act="health">Library health…</button>' +
     '<hr><button data-act="exit">Back to recl/\\mr</button>';
   m.style.display = '';
   var r = e.currentTarget.getBoundingClientRect(), mr = m.getBoundingClientRect();
@@ -2210,6 +2251,7 @@ function mzBindUI() {
       case 'menu-item': { mzCloseMenu(); var mi = (mz.menuItems || [])[parseInt(v, 10)]; if (mi && mi.run) mi.run(); break; }
       case 'haptics': mzCloseMenu(); mzToggleHaptics(); break;
       case 'quality': mzCloseMenu(); mzQualityMenu(); break;
+      case 'health': mzCloseMenu(); mzHealthOpen(); break;
       case 'exit': mzCloseMenu(); goHome(); break;
       default: if (typeof mzSp !== 'undefined' && mzSp && mzSp.click) mzSp.click(a, el, e);
     }

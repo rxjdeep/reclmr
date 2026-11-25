@@ -21,79 +21,16 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tagtools import KEEP, KEEP_FILE, load_keep, read_tags, split_artist, fix_file      # noqa: E402
+
 _HERE = Path(__file__).resolve().parent.parent
 MUSIC = Path(os.environ.get('RECLMR_MUSIC_DIR') or '/media/samsung_ssd/music')
 STATE = Path(os.environ.get('RECLMR_TAGFIX_STATE') or _HERE / 'tagfix_state.json')
 LOG = Path(os.environ.get('RECLMR_TAGFIX_LOG') or _HERE / 'tagfix.log')
-KEEP_FILE = Path(os.environ.get('RECLMR_TAGFIX_KEEP') or _HERE / 'tagfix_keep.txt')
 EXTS = {'.mp3', '.m4a', '.flac', '.ogg', '.opus', '.wma', '.aac'}
 SETTLE = 20            # seconds a file must stay unchanged first (a download may still be writing it)
 EVERY = 30             # seconds between looks at the folder
-
-KEEP = {
-    'AC/DC', 'Tyler, The Creator', 'Earth, Wind & Fire', 'Earth, Wind and Fire', 'Crosby, Stills, Nash & Young', 'Crosby, Stills & Nash',
-    'Emerson, Lake & Palmer', 'Peter, Paul and Mary', 'Fear, and Loathing in Las Vegas', 'Christ Church Cathedral Choir, Oxford',
-    'Probable Cauz Breaks/Jungle/DnB',
-}
-
-
-def load_keep():
-    keep = {k.casefold() for k in KEEP}
-    try:
-        for line in KEEP_FILE.read_text(encoding='utf-8').splitlines():
-            if line.strip() and not line.startswith('#'):
-                keep.add(line.strip().casefold())
-    except OSError:
-        pass
-    return keep
-
-
-def split_artist(name, keep):
-    """The name with its artists separated by "; ", or None when it should stay as it is."""
-    if not name or name.casefold() in keep or ':' in name:        # (a name with a drive letter or path in it is a tagging accident, not artists)
-        return None
-    if not re.search(r'(?<=\S)/(?=\S)|,\s+(?!and\b|&)|\s(?:feat\.?|ft\.?|featuring|vs\.?)\s', name, re.I):
-        return None                                                     # nothing Navidrome cannot split itself ("A; B", "A & B", "A / B")
-    t = name
-    t = re.sub(r'\s+(?:feat\.?|ft\.?|featuring)\s+', '; ', t, flags=re.I)
-    t = re.sub(r'\s+vs\.?\s+', '; ', t, flags=re.I)
-    t = re.sub(r'\s*/\s*', '; ', t)
-    t = re.sub(r',\s+(?!and\b|&)', '; ', t, flags=re.I)             # "Fear, and Loathing" is a name; "A, B" is two artists
-    t = re.sub(r'(?:;\s*){2,}', '; ', t).strip(' ;')
-    return t if t != name and t else None
-
-
-def read_tags(path):
-    import mutagen
-    return mutagen.File(str(path), easy=True)
-
-
-def fix_file(path, keep, dry):
-    """Returns the changes made (or that would be made) to one file: [(field, old, new)]."""
-    try:
-        f = read_tags(path)
-    except Exception:
-        return []
-    if f is None or f.tags is None:
-        return []
-    changes = []
-    for field in ('artist', 'albumartist'):
-        try:
-            vals = f.tags.get(field)
-        except Exception:
-            vals = None
-        if not vals:
-            continue
-        old = vals[0] if len(vals) == 1 else None                       # several values in one tag are already separated
-        new = split_artist(old, keep) if old else None
-        if new:
-            changes.append((field, old, new))
-            if not dry:
-                f.tags[field] = [new]
-    if changes and not dry:
-        f.save()
-    return changes
-
 
 def audio_files():
     for dp, _dn, fn in os.walk(MUSIC):

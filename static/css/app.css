@@ -7213,3 +7213,18 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 .mz-lyred button[hidden] { display: none; }
 .sp-lv-edit { margin-left: auto; padding: 8px 14px; border: 1px solid rgba(255,255,255,.35); border-radius: 999px; background: transparent; color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
 .sp-lv-edit:hover { background: rgba(255,255,255,.12); }
+
+/* library health */
+.mz-health-body { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; max-height: 62vh; }
+.mz-health-g { padding: 12px; border-radius: 10px; background: rgba(255,255,255,.06); }
+.mz-health-g.ok { opacity: .6; }
+.mz-health-gh { display: flex; align-items: center; gap: 10px; }
+.mz-health-gh b { flex: 1; }
+.mz-health-n { min-width: 26px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.14); text-align: center; font-size: 13px; }
+.mz-health-g p { margin: 6px 0 0; font-size: 13px; color: rgba(255,255,255,.65); }
+.mz-health-g ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+.mz-health-g li { margin-bottom: 3px; overflow-wrap: anywhere; }
+.mz-health-g li span { color: rgba(255,255,255,.6); }
+.mz-health-g li em { color: #1db954; font-style: normal; }
+.mz-health-g small { display: block; margin-top: 4px; color: rgba(255,255,255,.5); }
+.mz-health-msg { margin: 8px 2px; color: rgba(255,255,255,.7); }

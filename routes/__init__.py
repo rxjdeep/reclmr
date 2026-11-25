@@ -41,6 +41,9 @@ def register_blueprints(app, sock):
     from .loops import bp as loops_bp
     app.register_blueprint(loops_bp)
 
+    from .health import bp as health_bp
+    app.register_blueprint(health_bp)
+
     from .comfy import bp as comfy_bp
     app.register_blueprint(comfy_bp)
 
