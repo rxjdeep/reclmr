@@ -191,6 +191,16 @@ function loadMusic() {
   if (!mzLoading) mzLoading = mzLoad().finally(function () { mzLoading = null; });
   return mzLoading;
 }
+// The music drive going away (and coming back) changes what the server shows: look again when it does.
+var mzDrive = { ok: true, healing: false };
+setInterval(function () {
+  if (!mz.loaded || typeof mzScreenOpen !== 'function' || !mzScreenOpen()) return;
+  fetch('/api/music/drive').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d || (d.ok === mzDrive.ok && d.healing === mzDrive.healing)) return;
+    mzDrive = { ok: d.ok, healing: d.healing };
+    mz.freshNext = true; loadMusic();
+  }).catch(function () {});
+}, 20000);
 async function mzLoad() {
   var content = mzEl('wm-content');
   if (!content) return;

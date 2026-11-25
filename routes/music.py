@@ -500,6 +500,8 @@ def _library_data():
             data['error'] = 'Navidrome unavailable (' + error + '). Showing file tags'
     elif not data['tracks']:
         data['error'] = 'Navidrome returned no songs'
+    from . import drive
+    data = drive.guard(data)                                # a dropped drive must not empty the library on screen
     if not error and not data.get('scanning'):
         with _nd_lock:
             _nd_cache.update(ts=now, data=data)

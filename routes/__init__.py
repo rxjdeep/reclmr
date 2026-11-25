@@ -35,6 +35,9 @@ def register_blueprints(app, sock):
     from .ask import bp as ask_bp
     app.register_blueprint(ask_bp)
 
+    from .drive import bp as drive_bp
+    app.register_blueprint(drive_bp)
+
     from .comfy import bp as comfy_bp
     app.register_blueprint(comfy_bp)
 

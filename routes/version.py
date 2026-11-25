@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.11.1"
+VERSION = "0.12.0"
 
 CHANGELOG = [
+    {
+        "version": "0.12.0",
+        "date": "2026-11-26",
+        "changes": [
+            "Drive offline guard: the library stays when the music drive drops",
+            "A monitor checks the music folder every 15 seconds",
+            "while it is away the last complete library is shown with a notice",
+            "when it returns Navidrome is told to rescan so songs come back by themselves",
+        ]
+    },
     {
         "version": "0.11.1",
         "date": "2026-11-26",
