@@ -10,9 +10,9 @@
   <meta name="theme-color" content="#0a0a0f">
   <link rel="manifest" href="/static/manifest.json">
   <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/css/app.css?v=392">
-  <link rel="stylesheet" href="/static/css/onboarding.css?v=392">
-  <link rel="stylesheet" href="/static/css/gallery.css?v=392">
+  <link rel="stylesheet" href="/static/css/app.css?v=393">
+  <link rel="stylesheet" href="/static/css/onboarding.css?v=393">
+  <link rel="stylesheet" href="/static/css/gallery.css?v=393">
   <link rel="stylesheet" href="/static/vendor/xterm/xterm.min.css">
   <title>Project Recl/\mr</title>
 </head>
@@ -147,7 +147,7 @@
           <button class="wm-play" onclick="togglePlayMusic()" aria-label="Play/Pause" title="Play/Pause"><svg id="wm-play-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor"></svg></button>
           <button class="wm-ctl wm-ctl-skip" onclick="nextSong()" aria-label="Next" title="Next"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><polygon points="5 4 15 12 5 20"/><rect x="17" y="4" width="3" height="16" rx="1"/></svg></button>
           <button class="wm-ctl" id="wm-repeat" onclick="mzToggleRepeat()" aria-label="Repeat" title="Repeat"></button>
-          <button class="wm-ctl wm-ab" id="wm-ab" onclick="mzAbPress()" aria-label="Loop part of the song" title="Loop part of the song: press at the start, then at the end">A–B</button>
+          <button class="wm-ctl wm-ab" id="wm-ab" onclick="mzAbClick()" oncontextmenu="mzLoopsMenu(event)" aria-label="Loop part of the song" title="Loop part of the song: press at the start, then at the end">A–B</button>
         </div>
         <div class="wm-seekrow">
           <span id="wm-cur">0:00</span>
@@ -193,7 +193,7 @@
         <button class="play" id="sp-np-play" onclick="togglePlayMusic()" aria-label="Play/Pause"></button>
         <button onclick="nextSong()" aria-label="Next"><svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor"><polygon points="5 4 15 12 5 20"/><rect x="17" y="4" width="3" height="16" rx="1"/></svg></button>
         <button id="sp-np-repeat" onclick="mzToggleRepeat()" aria-label="Repeat"></button>
-        <button class="ab" id="sp-np-ab" onclick="mzAbPress()" aria-label="Loop part of the song">A–B</button>
+        <button class="ab" id="sp-np-ab" onclick="mzAbClick()" oncontextmenu="mzLoopsMenu(event)" aria-label="Loop part of the song">A–B</button>
       </div>
       <div class="sp-np-foot">
         <button onclick="mzDevicesMenu(event)" id="sp-np-dev" aria-label="Connect to a device"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="14" height="10" rx="1.5"/><line x1="6" y1="18" x2="12" y2="18"/><line x1="9" y1="14" x2="9" y2="18"/><rect x="16" y="9" width="6" height="11" rx="1.5"/></svg></button>
@@ -1314,37 +1314,37 @@
   </div>
 </div>
 
-<script src="/static/js/thinking-orbs.js?v=392"></script>
-<script src="/static/js/modules/auth.js?v=392"></script>
-<script src="/static/js/modules/onboarding.js?v=392"></script>
-<script src="/static/js/modules/core.js?v=392"></script>
-<script src="/static/js/modules/nav.js?v=392"></script>
-<script src="/static/js/modules/media-session.js?v=392"></script>
-<script src="/static/js/modules/home.js?v=392"></script>
- <script src="/static/js/modules/liquid.js?v=392"></script>
- <script src="/static/js/modules/musicgen.js?v=392"></script>
- <script src="/static/js/modules/models.js?v=392"></script>
-<script src="/static/js/modules/projects.js?v=392"></script>
-<script src="/static/js/modules/audiobooks.js?v=392"></script>
-<script src="/static/js/modules/ui-kit.js?v=392"></script>
-<script src="/static/js/modules/gallery.js?v=392"></script>
-<script src="/static/js/modules/lego.js?v=392"></script>
-<script src="/static/js/modules/logs.js?v=392"></script>
-<script src="/static/js/modules/terminal.js?v=392"></script>
-<script src="/static/js/modules/osint.js?v=392"></script>
-<script src="/static/js/modules/universe.js?v=392"></script>
-<script src="/static/js/modules/system.js?v=392"></script>
-<script src="/static/js/modules/ollama.js?v=392"></script>
-<script src="/static/js/modules/comfy.js?v=392"></script>
-<script src="/static/js/modules/lego3d.js?v=392"></script>
-<script src="/static/js/modules/voice.js?v=392"></script>
-<script src="/static/js/modules/journal.js?v=392"></script>
-<script src="/static/js/modules/legos3d.js?v=392"></script>
-<script src="/static/js/modules/settings.js?v=392"></script>
-<script src="/static/js/modules/telemetry.js?v=392"></script>
-<script src="/static/js/modules/desktop.js?v=392"></script>
-<script src="/static/js/modules/music.js?v=392"></script>
-<script src="/static/js/modules/music-spotify.js?v=392"></script>
+<script src="/static/js/thinking-orbs.js?v=393"></script>
+<script src="/static/js/modules/auth.js?v=393"></script>
+<script src="/static/js/modules/onboarding.js?v=393"></script>
+<script src="/static/js/modules/core.js?v=393"></script>
+<script src="/static/js/modules/nav.js?v=393"></script>
+<script src="/static/js/modules/media-session.js?v=393"></script>
+<script src="/static/js/modules/home.js?v=393"></script>
+ <script src="/static/js/modules/liquid.js?v=393"></script>
+ <script src="/static/js/modules/musicgen.js?v=393"></script>
+ <script src="/static/js/modules/models.js?v=393"></script>
+<script src="/static/js/modules/projects.js?v=393"></script>
+<script src="/static/js/modules/audiobooks.js?v=393"></script>
+<script src="/static/js/modules/ui-kit.js?v=393"></script>
+<script src="/static/js/modules/gallery.js?v=393"></script>
+<script src="/static/js/modules/lego.js?v=393"></script>
+<script src="/static/js/modules/logs.js?v=393"></script>
+<script src="/static/js/modules/terminal.js?v=393"></script>
+<script src="/static/js/modules/osint.js?v=393"></script>
+<script src="/static/js/modules/universe.js?v=393"></script>
+<script src="/static/js/modules/system.js?v=393"></script>
+<script src="/static/js/modules/ollama.js?v=393"></script>
+<script src="/static/js/modules/comfy.js?v=393"></script>
+<script src="/static/js/modules/lego3d.js?v=393"></script>
+<script src="/static/js/modules/voice.js?v=393"></script>
+<script src="/static/js/modules/journal.js?v=393"></script>
+<script src="/static/js/modules/legos3d.js?v=393"></script>
+<script src="/static/js/modules/settings.js?v=393"></script>
+<script src="/static/js/modules/telemetry.js?v=393"></script>
+<script src="/static/js/modules/desktop.js?v=393"></script>
+<script src="/static/js/modules/music.js?v=393"></script>
+<script src="/static/js/modules/music-spotify.js?v=393"></script>
 
 <!-- ═══ ONBOARDING OVERLAY ═══ -->
 <div id="onboarding-overlay" class="onboarding-overlay" style="display:none">

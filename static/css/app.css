@@ -7193,3 +7193,4 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 /* A–B loop button: text instead of an icon */
 .wm-ab { font: 700 11px/1 system-ui, sans-serif; letter-spacing: .02em; white-space: nowrap; }
 .sp-np-ctl button.ab { width: 40px; font: 700 12px/1 system-ui, sans-serif; letter-spacing: .02em; }
+.wm-menu-sep { height: 1px; margin: 4px 8px; background: rgba(255,255,255,.12); }

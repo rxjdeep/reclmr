@@ -349,7 +349,7 @@ function mzAbPaint() {
     var e = mzEl(id); if (!e) return;
     e.classList.toggle('on', !!ab); e.setAttribute('aria-pressed', ab ? 'true' : 'false');
     e.textContent = !ab ? 'A–B' : ab.b == null ? 'A→' : 'A⟲B';
-    e.title = !ab ? 'Loop part of the song: press at the start, then at the end' : ab.b == null ? 'Press again at the end of the part to loop' : 'Looping ' + mzFmt(ab.a) + ' – ' + mzFmt(ab.b) + ' · press to clear';
+    e.title = !ab ? 'Loop part of the song: press at the start, then at the end · right-click or hold for saved loops' : ab.b == null ? 'Press again at the end of the part to loop' : 'Looping ' + mzFmt(ab.a) + ' – ' + mzFmt(ab.b) + ' · press to clear';
   });
 }
 function mzAbClear() { mz.ab = null; mzAbPaint(); }                 // a new song starts without one
@@ -365,7 +365,7 @@ function mzAbPress() {
   if (!mz.ab) { mzAbSet({ a: cur, b: null }); mzToast('Loop start ' + mzFmt(cur) + ' · press again at the end'); }
   else if (mz.ab.b == null) {
     if (cur - mz.ab.a < 0.5) { mzToast('Pick a point after the start (' + mzFmt(mz.ab.a) + ')'); return; }
-    mzAbSet({ a: mz.ab.a, b: cur }); mzToast('Looping ' + mzFmt(mz.ab.a) + ' – ' + mzFmt(cur));
+    mzAbSet({ a: mz.ab.a, b: cur }); mzToast('Looping ' + mzFmt(mz.ab.a) + ' – ' + mzFmt(cur), { label: 'Save', fn: mzLoopsSave });
   } else { mzAbSet(null); mzToast('Loop off'); }
 }
 function mzAbTick() {
@@ -374,6 +374,62 @@ function mzAbTick() {
   if (a.currentTime >= ab.b && a.currentTime < ab.b + 1.5) { try { a.currentTime = ab.a; } catch (_) {} }      // played up to the end of the part: back to its start (a seek past it is left alone)
 }
 setInterval(mzAbTick, 60);
+
+// Saved loops: a name for a part of a song, kept on the server. Right-click or long-press the A–B button (or press Save when a loop starts).
+function mzAbClick() { if (mz.abLong && Date.now() - mz.abLong < 800) return; mzAbPress(); }
+function mzLoopsGet(f) {
+  return fetch('/api/music/loops?f=' + encodeURIComponent(f)).then(function (r) { return r.ok ? r.json() : { loops: [] }; }).then(function (d) { return d.loops || []; }).catch(function () { return []; });
+}
+function mzLoopsSave() {
+  var t = mzCur(), ab = mz.ab; if (!t || !ab || ab.b == null) return;
+  var name = prompt('Name this loop (' + mzFmt(ab.a) + ' – ' + mzFmt(ab.b) + ')', '');
+  if (name === null) return;
+  fetch('/api/music/loops', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ f: t.f, name: name, a: ab.a, b: ab.b }) })
+    .then(function (r) { if (!r.ok) throw new Error(); mzToast('Loop saved'); }).catch(function () { mzToast('Could not save the loop'); });
+}
+function mzLoopUse(l) { mzAbSet({ a: l.a, b: l.b }); mzMediaSeekTo(l.a); mzToast('Looping ' + l.name); }
+function mzLoopDel(t, l) {
+  fetch('/api/music/loops', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ f: t.f, id: l.id }) })
+    .then(function (r) { if (!r.ok) throw new Error(); mzToast('Loop deleted'); }).catch(function () {});
+}
+function mzLoopsMenu(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  if (e && e.stopPropagation) e.stopPropagation();
+  if (Date.now() - (mz.loopsAt || 0) < 700) return;                            // a long-press fires both the timer and the browser's own context menu event
+  mz.loopsAt = Date.now();
+  var t = mzCur(), btn = e && (e.currentTarget || e.target); if (!t) return;
+  mzLoopsGet(t.f).then(function (list) {
+    var ab = mz.ab, items = [];
+    if (ab && ab.b != null) items.push({ label: 'Save this loop', sub: mzFmt(ab.a) + ' – ' + mzFmt(ab.b), run: mzLoopsSave });
+    else items.push({ info: true, label: ab ? 'Press A–B again at the end of the part to loop it.' : 'Press A–B at the start and again at the end of a part to loop it.' });
+    if (list.length) items.push({ sep: true });
+    list.forEach(function (l) { items.push({ label: l.name, sub: mzFmt(l.a) + ' – ' + mzFmt(l.b), on: !!ab && ab.b != null && Math.abs(ab.a - l.a) < 0.05 && Math.abs(ab.b - l.b) < 0.05, run: function () { mzLoopUse(l); } }); });
+    if (list.length) { items.push({ sep: true }); list.forEach(function (l) { items.push({ label: 'Delete “' + l.name + '”', run: function () { mzLoopDel(t, l); } }); }); }
+    mz.menuItems = items;
+    if (mzUseSheet()) { mzSp.menuSheet({ title: 'Loops in this song', items: items }); return; }
+    var m = mzEl('wm-menu'); if (!m || !btn || !btn.getBoundingClientRect) return;
+    var h = '<div class="wm-menu-h">Loops in this song</div>';
+    items.forEach(function (it, i) {
+      if (it.sep) h += '<div class="wm-menu-sep"></div>';
+      else if (it.info) h += '<div class="wm-menu-h" style="text-transform:none;letter-spacing:0;padding-top:6px">' + escapeHtml(it.label) + '</div>';
+      else h += '<button data-act="menu-item" data-v="' + i + '">' + escapeHtml(it.label) + (it.sub ? '<small> · ' + escapeHtml(it.sub) + '</small>' : '') + '</button>';
+    });
+    m.innerHTML = h; m.style.display = '';
+    var r = btn.getBoundingClientRect(), mr = m.getBoundingClientRect();
+    m.style.left = Math.max(4, Math.min(r.right - mr.width, window.innerWidth - mr.width - 4)) + 'px';
+    m.style.top = Math.max(4, r.top - mr.height - 8) + 'px';
+  });
+}
+document.addEventListener('pointerdown', function (e) {
+  var b = e.target.closest && e.target.closest('#wm-ab, #sp-np-ab'); if (!b) return;
+  clearTimeout(mz.abLP);
+  mz.abLP = setTimeout(function () { mz.abLong = mz.abSwallow = Date.now(); mzLoopsMenu({ currentTarget: b }); }, 550);
+}, true);
+// letting go after a long-press is a click on whatever is under the finger by then (the menu's backdrop would close it at once): drop that one click
+document.addEventListener('click', function (e) {
+  if (mz.abSwallow && Date.now() - mz.abSwallow < 4000) { mz.abSwallow = 0; e.stopPropagation(); e.preventDefault(); }
+}, true);
+['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { document.addEventListener(ev, function () { clearTimeout(mz.abLP); }, true); });
 
 // ─── help for first-time users (glossy theme) ────────────
 function mzToggleHelp(e) {
@@ -2081,6 +2137,7 @@ function mzBindUI() {
       case 'np-artist': if (v) mzGo('artist', v); break;
       case 'theme': mzCloseMenu(); mzSetTheme(v); break;
       case 'xfer': mzCloseMenu(); mzTransfer(v); break;
+      case 'menu-item': { mzCloseMenu(); var mi = (mz.menuItems || [])[parseInt(v, 10)]; if (mi && mi.run) mi.run(); break; }
       case 'haptics': mzCloseMenu(); mzToggleHaptics(); break;
       case 'quality': mzCloseMenu(); mzQualityMenu(); break;
       case 'exit': mzCloseMenu(); goHome(); break;
