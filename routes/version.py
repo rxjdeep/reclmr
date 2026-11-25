@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.15.0"
+VERSION = "0.16.0"
 
 CHANGELOG = [
+    {
+        "version": "0.16.0",
+        "date": "2026-11-26",
+        "changes": [
+            "Swipe the mini player down to end all playback",
+            "Pulling the bar down on a phone stops playback, deletes the session and removes the bar until something plays again",
+            "from a device that only controls another one it ends playback there too",
+            "other devices that mirror it empty their bar",
+        ]
+    },
     {
         "version": "0.15.0",
         "date": "2026-11-26",

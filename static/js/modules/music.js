@@ -1029,7 +1029,7 @@ function mzOnState(m) {
   mz.devices = m.devices || []; mz.activeId = m.active || null;
   if (!mz.loaded) { mz.pendingMsg = m; mzUpdateRemoteUI(); return; }
   var s = m.s, me = mzMe();
-  if (!s || !s.state || !s.state.q) { mz.remote = false; mzUpdateRemoteUI(); return; }
+  if (!s || !s.state || !s.state.q) { if (mz.remote) { mz.remote = false; mzClearPlayer(); } else mzUpdateRemoteUI(); return; }
   var newer = s.updated > (mz.rev || 0);                                         // the server's copy changed since this device last saw it
   mz.rev = s.updated;
   if (m.active === me) {
@@ -1251,6 +1251,7 @@ function mzOnCmd(m) {
     case 'prev': prevSong(); break;
     case 'seek': if (isFinite(m.v)) { musicAudio.currentTime = m.v; mzSaveState(true); } break;
     case 'shuffle': if (mz.shuffle !== !!m.v) mzToggleShuffle(); break;
+    case 'endall': mzEndAll(true); break;
     case 'loop': mz.ab = mzAbFrom(m.v); mzAbPaint(); mzSaveState(true); break;
     case 'repeat': mz.repeat = m.v === 'all' || m.v === 'one' ? m.v : 'off'; mzUpdateModes(); mzSaveState(true); break;
     case 'vol': mz.prefs.vol = Math.max(0, Math.min(1, +m.v || 0)); mz.prefs.muted = false; mzSavePrefs(); mzApplyVolume(); break;
@@ -1491,6 +1492,24 @@ function togglePlayMusic() {
   if (musicAudio.paused) { mzSetPlayIcon(true); var p = musicAudio.play(); if (p && p.catch) p.catch(function () { mzSetPlayIcon(!musicAudio.paused); }); }
   else { mzSetPlayIcon(false); musicAudio.pause(); }
 }
+// Swiping the bar down ends everything: this device stops, the session is deleted on the server, and the bar goes. From a device that is only controlling another one,
+// that other device is told to end it (and every device that mirrors it empties its bar when the session is gone).
+function mzClearPlayer() {
+  mz.queue = []; mz.qi = -1; mz.origQueue = null; mz.srcId = null; mz.rs = null; mz.remote = false; mz.ab = null; mzAbPaint();
+  try { localStorage.removeItem(MZ_STATE_KEY); } catch (_) {}
+  mzUpdateRemoteUI(); mzRender();
+  var w = document.querySelector('#music-screen .wm'); if (w && mzIsMobile()) w.classList.add('dismissed');       // the bar goes until something plays again
+  if (typeof setMediaSessionPlaying === 'function') setMediaSessionPlaying(false);
+  if (typeof mzSp !== 'undefined' && mzSp && mzSp.npSet) mzSp.npSet(false, false);
+}
+function mzEndAll(fromCmd) {
+  mzHaptic('close');
+  if (mz.remote && !fromCmd) mzCmd('endall');
+  else if (musicAudio) { musicAudio.pause(); musicAudio.removeAttribute('src'); musicAudio.load(); }
+  var wasRemote = mz.remote && !fromCmd;
+  mzClearPlayer();
+  if (!wasRemote) mzEndSession();
+}
 function mzStop() {
   if (mz.remote) { mzCmd('pause'); mzCmd('seek', 0); mzRemoteOptimistic(false); mz.rs.st.pos = 0; return; }
   if (musicAudio && musicAudio.src) { musicAudio.pause(); musicAudio.currentTime = 0; } }
@@ -1714,6 +1733,7 @@ function mzUpdateNow(quiet) {
   mzNowText(t);
   mzEl('wm-now-art').outerHTML = mzArt(t, 160, 'wm-now-art', 'wm-now-art');
   var wA = document.querySelector('#music-screen .wm');
+  if (wA) wA.classList.remove('dismissed');
   if (wA) wA.style.setProperty('--wm-amb', t.c ? 'url("' + mzCoverUrl(t.c, 240) + '")' : 'none');     // blurred backdrop behind the glossy glass panels
   if (mz.theme === 'spotify' && typeof mzSp !== 'undefined' && mzSp && mzSp.miniTint) mzSp.miniTint(t);
   mzEl('wm-dur').textContent = mzFmt(t.d); mzEl('wm-cur').textContent = '0:00';

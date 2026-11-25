@@ -2259,9 +2259,18 @@ var mzSp = (function () {
         if (nw) { nw.style.transition = 'none'; nw.style.transform = 'translateX(' + dx * 0.55 + 'px)'; nw.style.opacity = String(Math.max(.35, 1 - Math.abs(dx) / 320)); }
         return;
       }
+      if (g.down) {
+        if (tr) { tr.style.transition = 'none'; tr.style.transform = 'translateY(' + Math.max(0, dy) * 0.9 + 'px)'; tr.style.opacity = String(Math.max(.25, 1 - dy / 160)); }
+        var pd = dy > 70; if (pd !== g.pd) { g.pd = pd; mzHaptic('detent'); }
+        var nw0 = performance.now(); g.v = 0.6 * g.v + 0.4 * ((e.clientY - g.last.y) / Math.max(1, nw0 - g.last.t)); g.last = { y: e.clientY, t: nw0 };
+        return;
+      }
       if (!g.moved) {
         if (Math.abs(dy) < (g.caught ? 2 : 8)) return;
-        if (dy > 0 && !g.caught) { g = null; return; }             // the mini player only opens upward (unless the sheet was caught mid-slide)
+        if (dy > 0 && !g.caught) {                                 // the mini player opens upward; pulled down it is dismissed (ends all playback)
+          if (dy < Math.abs(e.clientX - g.x0) * 1.2) { g = null; return; }
+          g.down = true;
+        }
         g.moved = true;
         clearTimeout(npHideT);
         n.style.visibility = 'visible'; n.classList.add('shown');
@@ -2284,6 +2293,16 @@ var mzSp = (function () {
         if (Math.abs(dxe) > 70 && mzCur()) { if (dxe < 0) nextSong(); else prevSong(); }
         return;
       }
+      if (d.down) {                                                // let go: far enough (or fast enough) ends everything, otherwise it springs back
+        lastDragAt = Date.now();
+        var ddy = e.clientY - d.y0;
+        if (tr) { tr.style.transition = 'transform .2s ease, opacity .2s ease'; }
+        if (ddy > 70 || d.v > 0.6) {
+          if (tr) { tr.style.transform = 'translateY(120%)'; tr.style.opacity = '0'; }
+          setTimeout(function () { if (tr) { tr.style.transition = ''; tr.style.transform = ''; tr.style.opacity = ''; } mzEndAll(); }, 200);
+        } else if (tr) { tr.style.transform = ''; tr.style.opacity = ''; setTimeout(function () { tr.style.transition = ''; }, 220); }
+        return;
+      }
       if (!d.moved) { if (d.caught) SP.npSet(npIsOpen, true); else if (phone() && mzCur()) mzNowTap(); return; }   // a tap on the mini player (the click is retargeted by the capture, so handle it here)
       lastDragAt = Date.now(); dragFlush();
       var h = d.H, dy = e.clientY - d.y0, pos = Math.min(h, Math.max(0, d.base + dy));
@@ -2291,7 +2310,7 @@ var mzSp = (function () {
       if (opening) { if (nav.cur !== 'music/player') navSet('music/player'); SP.npSet(true, true, Math.abs(d.v) > 0.4 ? Math.abs(d.v) : 0); }
       else SP.npSet(false, true, Math.abs(d.v) > 0.4 ? Math.abs(d.v) : 0);
     }
-    function cancel(e) { if (g && e.pointerId === g.id) { var d = g; g = null; if (d.h) { var nw = mzEl('wm-now'); if (tr) tr.classList.remove('swiping'); if (nw) { nw.style.transform = ''; nw.style.opacity = ''; nw.style.transition = ''; } } else if (d.moved) SP.npSet(false, true); } }
+    function cancel(e) { if (g && e.pointerId === g.id) { var d = g; g = null; if (d.down && tr) { tr.style.transition = ''; tr.style.transform = ''; tr.style.opacity = ''; } if (d.h) { var nw = mzEl('wm-now'); if (tr) tr.classList.remove('swiping'); if (nw) { nw.style.transform = ''; nw.style.opacity = ''; nw.style.transition = ''; } } else if (d.moved) SP.npSet(false, true); } }
     if (tr) {
       tr.addEventListener('pointerdown', function (e) { if (phone() && mzCur()) begin(e); });
       tr.addEventListener('pointermove', move);

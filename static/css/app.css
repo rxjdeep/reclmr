@@ -7228,3 +7228,6 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 .mz-health-g li em { color: #1db954; font-style: normal; }
 .mz-health-g small { display: block; margin-top: 4px; color: rgba(255,255,255,.5); }
 .mz-health-msg { margin: 8px 2px; color: rgba(255,255,255,.7); }
+
+/* swiped away: no bar until something plays again */
+.wm.dismissed .wm-transport { display: none !important; }
