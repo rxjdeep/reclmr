@@ -1973,7 +1973,6 @@ var mzSp = (function () {
     function content() { return mzEl('wm-content'); }
     function move(e) {
       if (!D) return;
-      if (e.pointerId !== undefined && (e.pointerId !== D.pid || (D.pt && D.tid !== undefined))) return;       // once the held finger is followed by touch id, pointer events no longer move the row
       D.cy = e.clientY;
       var y = D.cy - D.sy + (content().scrollTop - D.scroll0);
       if (!D.sel) D.row.style.transform = 'translateY(' + y + 'px)'; dragLayout(D, y);
