@@ -779,6 +779,7 @@ var mzSp = (function () {
       case 'sp-popmore': mz.spPopMore = mz.spPopMore === v ? '' : v; SP.render(); break;
       case 'sp-stab': { srTab = v || ''; SP.render(); var sc = mzEl('wm-content'); if (sc) sc.scrollTop = 0; break; }
       case 'sp-lyr-seek': { var ms = parseInt(el.dataset.ms, 10); if (isFinite(ms)) { mzHaptic('tick'); mzMediaSeekTo(ms / 1000); if (lyr) lyr.user = 0; lyrSync(true); } break; }
+      case 'np-biomore': { mz.spBioOpen = !mz.spBioOpen; bioPaint(); break; }
       case 'sp-creditsall': { mz.spCreditsAll = !mz.spCreditsAll; var ct = mzCur(); if (ct) npCards(ct); break; }
       case 'sp-artistmenu': { var arm = mz.artists.get(v); if (arm) SP.artistMenu(arm); break; }
       case 'sp-qual': { var qt = mzCur(); if (qt) SP.qualMenu(qt); break; }
@@ -1300,8 +1301,8 @@ var mzSp = (function () {
       var photo = artistImg(main, 900), fb = t.c ? mzCoverUrl(t.c, 700) : '';
       var img = photo ? '<img alt="" src="' + esc(photo) + '"' + (fb ? ' data-fb="' + esc(fb) + '"' : '') + ' onerror="' + IMG_FALLBACK + '">' : fb ? '<img alt="" src="' + esc(fb) + '" onerror="this.remove()">' : '';
       html += '<section class="sp-npc"><div class="sp-aimgwrap" data-act="np-artist" data-v="' + esc(main.id) + '">' + img + '<span class="sp-aboutlabel">About the artist</span></div>' +
-        '<div class="sp-abody"><div class="sp-arow"><div class="sp-aname"><b>' + esc(main.name) + '</b><small>' + esc(plural(main.tracks.length, 'song')) + ' in your library</small></div>' + '</div>' +
-        '<p class="sp-abio" id="sp-np-bio" data-aid="' + esc(main.id) + '"></p></div></section>';
+        '<div class="sp-abody"><div class="sp-arow"><div class="sp-aname" data-act="np-artist" data-v="' + esc(main.id) + '" style="cursor:pointer"><b>' + esc(main.name) + '</b><small>' + esc(plural(main.tracks.length, 'song')) + ' in your library</small></div>' + '</div>' +
+        '<p class="sp-abio" id="sp-np-bio" data-aid="' + esc(main.id) + '" data-act="np-biomore"></p><a class="sp-abmore" id="sp-np-bio-more" data-act="np-biomore" hidden></a></div></section>';
     }
     // credits: the credited artists first, then composers, lyricists and the like (an artist who is both gets one row)
     var rows = [], byId = {};
@@ -1322,8 +1323,17 @@ var mzSp = (function () {
     box.innerHTML = html;
     if (main) fetchAbout(main.id, function (d) {
       var el = mzEl('sp-np-bio'); if (!el || el.dataset.aid !== main.id) return;                    // the song changed while this was loading
-      var bio = d.bio || ''; el.textContent = bio.length > 260 ? bio.slice(0, 260).replace(/\s+\S*$/, '') + '…' : bio;
+      npBio = d.bio || ''; bioPaint();
     });
+  }
+  // The biography: three lines to start with, "Read more" for the rest (tapping the text does the same)
+  var npBio = '';
+  function bioPaint() {
+    var el = mzEl('sp-np-bio'), more = mzEl('sp-np-bio-more'); if (!el) return;
+    var long = npBio.length > 200, open = !!mz.spBioOpen;
+    el.textContent = npBio; el.classList.toggle('open', open && long);
+    if (more) { more.hidden = !long; more.textContent = open ? 'Show less' : 'Read more'; }
+    el.style.cursor = long ? 'pointer' : '';
   }
 
   // ─── menu sheets: the ⋯ menu, the device picker and the settings menu on a phone ─────────────────

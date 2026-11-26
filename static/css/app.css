@@ -6464,6 +6464,9 @@ body.desktop-mode #music-screen { max-width: none; margin: 0; }
   .sp-aname small { display: block; margin-top: 2px; font-size: 14px; color: #b3b3b3; }
   .sp-abio { margin: 14px 0 0; color: #b3b3b3; font-size: 15px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .sp-abio:empty { display: none; }
+  .sp-abio.open { display: block; -webkit-line-clamp: unset; overflow: visible; }
+  .sp-abmore { display: inline-block; margin-top: 8px; font-size: 14px; font-weight: 700; color: #fff; cursor: pointer; }
+  .sp-abmore[hidden] { display: none; }
   .sp-credits { padding: 18px 20px 8px; }
   .sp-credits-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px; }
   .sp-credits-h b { font-size: 20px; font-weight: 800; }
