@@ -23,7 +23,8 @@ var mz = {
 };
 try {
   var _mzp = JSON.parse(localStorage.getItem('mzPrefs2') || '{}');
-  Object.keys(_mzp).forEach(function (k) { if (k in mz.prefs) mz.prefs[k] = _mzp[k]; });
+  var _mzKeep = ['qWifi', 'qCell', 'quality', 'lyr', 'qp'];         // settings that have no default above: they must still come back (they were thrown away at every start)
+  Object.keys(_mzp).forEach(function (k) { if (k in mz.prefs || _mzKeep.indexOf(k) >= 0) mz.prefs[k] = _mzp[k]; });
   mz.prefs.viz = !/iPad|iPhone|iPod/.test(navigator.userAgent);   // never stay switched off because of one earlier failure
 } catch (_) {}
 try { mz.prefs.sideW = Object.assign({ glossy: 232, spotify: 320 }, mz.prefs.sideW || {}); } catch (_) {}
@@ -430,6 +431,20 @@ document.addEventListener('click', function (e) {
   if (mz.abSwallow && Date.now() - mz.abSwallow < 4000) { mz.abSwallow = 0; e.stopPropagation(); e.preventDefault(); }
 }, true);
 ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { document.addEventListener(ev, function () { clearTimeout(mz.abLP); }, true); });
+
+// Delete a song's file from the drive for good (long-press / right-click menu). Asks first; it cannot be undone.
+function mzDeleteFile(t) {
+  if (!t) return;
+  if (!confirm('Delete “' + t.t + '” by ' + t.ar + ' permanently?\n\nThe file is removed from your music drive and cannot be brought back.')) return;
+  fetch('/api/music/file/' + encodeURIComponent(t.f), { method: 'DELETE' })
+    .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw new Error(d.error || 'failed'); return d; }); })
+    .then(function () {
+      for (var i = mz.queue.length - 1; i >= 0; i--) { if (mz.queue[i].f === t.f) mzQueueRemoveAt(i); }       // out of the queue (the playing one moves on to the next song)
+      mzToast('Deleted “' + t.t + '”');
+      mz.freshNext = true; loadMusic();
+    })
+    .catch(function (e) { mzToast('Could not delete: ' + (e.message || 'error')); });
+}
 
 // ─── lyrics editor: fix the words or the timing of a song's lyrics (saved on the server; "Back to original" removes the edit) ───
 function mzLrcTs(ms) {
@@ -2054,10 +2069,10 @@ function mzOpenMenu(x, y, id, fromQueue, qIdx) {
   }
   var addPl = typeof mzSp !== 'undefined' && mzSp && mzSp.addMenu ? it('addpl', 'Add to playlist') : '';
   m.innerHTML = (sp ? it('queue', 'Add to queue') + it('next', 'Play next') + addPl + '<hr>' + artistItems() + (t.li ? it('album', 'Go to album') : '') + '<hr>' +
-      it('fav', t.fav ? 'Remove from Liked Songs' : 'Save to your Liked Songs') + it('lyrics', 'Edit lyrics') + (fromQueue ? it('remove', 'Remove from queue') : '')
+      it('fav', t.fav ? 'Remove from Liked Songs' : 'Save to your Liked Songs') + it('lyrics', 'Edit lyrics') + (fromQueue ? it('remove', 'Remove from queue') : '') + '<hr>' + it('delete', 'Delete file permanently')
     : it('play', 'Play') + it('next', 'Play next') + it('queue', 'Add to queue') + addPl + '<hr>' +
       it('fav', t.fav ? 'Remove from favorites' : 'Add to favorites') + it('lyrics', 'Edit lyrics') + '<hr>' +
-      artistItems() + (t.li ? it('album', 'Go to album') : '') + (fromQueue ? '<hr>' + it('remove', 'Remove from queue') : ''));
+      artistItems() + (t.li ? it('album', 'Go to album') : '') + (fromQueue ? '<hr>' + it('remove', 'Remove from queue') : '') + '<hr>' + it('delete', 'Delete file permanently'));
   m.style.display = '';
   var r = m.getBoundingClientRect();
   m.style.left = Math.max(4, Math.min(x, window.innerWidth - r.width - 4)) + 'px';
@@ -2253,6 +2268,7 @@ function mzBindUI() {
       case 'm-addpl': mzCloseMenu(); if (t && typeof mzSp !== 'undefined' && mzSp.addMenu) mzSp.addMenu(null, t, {}); break;
       case 'm-fav': if (t) mzToggleFav(t); mzCloseMenu(); break;
       case 'm-lyrics': mzCloseMenu(); if (t) mzLyricsEdit(t); break;
+      case 'm-delete': mzCloseMenu(); if (t) mzDeleteFile(t); break;
       case 'lyr-edit': mzLyricsEdit(mzCur()); break;
       case 'm-artist': mzCloseMenu(); if (v || t) mzGo('artist', v || t.ai || t.ar); break;
       case 'm-album': mzCloseMenu(); if (t) mzGo('album', t.li); break;

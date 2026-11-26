@@ -1360,7 +1360,7 @@ var mzSp = (function () {
     var rows = items.map(function (it, i) {
       if (it.sep) return '<div class="sp-addsep"></div>';
       if (it.info) return '<div class="sp-mrow info"><span class="sp-mt"><small>' + esc(it.label) + '</small></span></div>';
-      return '<div class="sp-mrow' + (it.on ? ' on' : '') + '" role="button" tabindex="0" data-i="' + i + '">' + (it.icon || '') +
+      return '<div class="sp-mrow' + (it.on ? ' on' : '') + (it.danger ? ' danger' : '') + '" role="button" tabindex="0" data-i="' + i + '">' + (it.icon || '') +
         '<span class="sp-mt"><b>' + esc(it.label) + '</b>' + (it.sub ? '<small>' + esc(it.sub) + '</small>' : '') + '</span>' + (o.checks && it.on ? '<span class="sp-mtick">' + MI.tick + '</span>' : '') + '</div>';
     }).join('');
     var el = document.createElement('div'); el.id = 'sp-msheet'; el.className = 'sp-addsheet sp-msheet';
@@ -1672,6 +1672,8 @@ var mzSp = (function () {
       items.push({ icon: MI.queue, label: lyrOn ? 'Hide lyrics' : 'Show lyrics', run: function () { mz.prefs.lyr = !lyrOn; mzSavePrefs(); lyrLoad(t); mzToast(lyrOn ? 'Lyrics hidden' : 'Lyrics on'); } });
     }
     if (o.fromQueue && o.qIdx != null && !isNaN(o.qIdx) && o.qIdx !== mz.qi) { items.push({ sep: true }); items.push({ icon: MI.remove, label: 'Remove from queue', run: function () { mzQueueRemoveAt(o.qIdx); } }); }
+    items.push({ sep: true });
+    items.push({ icon: MI.remove, label: 'Delete file permanently', danger: true, run: function () { mzDeleteFile(t); } });
     var head = '<div class="sp-mhead">' + trackCov(t, 100, 'sm') + '<span class="sp-mt"><b>' + esc(t.t) + '</b><small>' + esc(t.ar) + '</small></span></div>';
     SP.menuSheet({ title: t.t, head: head, items: items });
   };

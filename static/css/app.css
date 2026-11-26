@@ -7234,3 +7234,5 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 
 /* swiped away: no bar until something plays again */
 .wm.dismissed .wm-transport { display: none !important; }
+.sp-mrow.danger b, .sp-mrow.danger svg { color: #f15e6c; }
+#wm-menu button[data-act="m-delete"] { color: #f15e6c; }

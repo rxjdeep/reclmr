@@ -8,9 +8,18 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.16.1"
+VERSION = "0.17.0"
 
 CHANGELOG = [
+    {
+        "version": "0.17.0",
+        "date": "2026-11-26",
+        "changes": [
+            "Delete a song's file permanently; streaming quality now survives a restart",
+            "Song menu (long-press or right-click) has Delete file permanently: asks first, removes the file and its .lrc from the drive",
+            "Streaming quality (and the lyrics switch) were thrown away at every start because they had no default: they are kept now",
+        ]
+    },
     {
         "version": "0.16.1",
         "date": "2026-11-26",

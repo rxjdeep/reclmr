@@ -502,6 +502,7 @@ def _library_data():
         data['error'] = 'Navidrome returned no songs'
     from . import drive
     data = drive.guard(data)                                # a dropped drive must not empty the library on screen
+    data = _hide_deleted(data)
     if not error and not data.get('scanning'):
         with _nd_lock:
             _nd_cache.update(ts=now, data=data)
@@ -1898,6 +1899,62 @@ def music_lyrics_save(tid):
         return jsonify({'error': 'could not save'}), 500
     _lyr_cache.pop(tid, None)
     return jsonify({**got, 'edited': True})
+
+
+_deleted = {}                                           # song id -> when it was deleted: kept out of the library until Navidrome's scan has caught up
+
+
+def _hide_deleted(data):
+    now = time.time()
+    for k in [k for k, t in _deleted.items() if now - t > 900]:
+        _deleted.pop(k, None)
+    if not _deleted:
+        return data
+    return {**data, 'tracks': [t for t in data.get('tracks', []) if t.get('f') not in _deleted]}
+
+
+@bp.route('/api/music/file/<path:ident>', methods=['DELETE'])
+@limiter.limit('60 per minute')
+def music_file_delete(ident):
+    """Delete a song's file from the drive for good (and the .lrc beside it). Cannot be undone: the app asks first."""
+    if _bad_id(ident):
+        return jsonify({'error': 'bad id'}), 400
+    from . import drive
+    if not drive._S['ok']:
+        return jsonify({'error': 'The music drive is offline.'}), 503
+    p = _local_src(ident)
+    if not p or p.suffix.lower() not in MUSIC_EXTS:
+        return jsonify({'error': 'That file is not on this machine.'}), 404
+    try:
+        p.unlink()
+    except OSError as e:
+        return jsonify({'error': 'Could not delete it: %s' % (e.strerror or 'error')}), 500
+    for side in (p.with_suffix('.lrc'), ):
+        try:
+            side.unlink()
+        except OSError:
+            pass
+    try:
+        _edit_file(ident).unlink()
+    except OSError:
+        pass
+    if not _nd_conf():
+        with _state_lock:
+            st = _load_state()
+            st['favs'] = [f for f in st.get('favs', []) if f != ident]
+            st.get('plays', {}).pop(ident, None)
+            _save_state(st)
+    try:
+        with open(_APP_DIR / 'deleted_files.log', 'a', encoding='utf-8') as fh:
+            fh.write(json.dumps({'t': int(time.time()), 'file': str(p)}, ensure_ascii=False) + '\n')
+    except OSError:
+        pass
+    _deleted[ident] = time.time()
+    _lyr_cache.pop(ident, None)
+    _invalidate()
+    if _nd_conf():
+        threading.Thread(target=lambda: _nd_get('startScan'), daemon=True).start()           # Navidrome notices the file is gone
+    return jsonify({'ok': True})
 
 
 @bp.route('/api/music/lyrics/<path:tid>', methods=['DELETE'])
