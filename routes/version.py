@@ -8,9 +8,18 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.18.1"
+VERSION = "0.18.2"
 
 CHANGELOG = [
+    {
+        "version": "0.18.2",
+        "date": "2026-11-26",
+        "changes": [
+            "Playlist editing on desktop works like on the phone",
+            "The pencil button now shows on desktop too: grips to drag, red buttons to remove, Done to save",
+            "The desktop-only row dragging is gone",
+        ]
+    },
     {
         "version": "0.18.1",
         "date": "2026-11-26",

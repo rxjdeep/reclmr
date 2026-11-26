@@ -505,7 +505,7 @@ var mzSp = (function () {
         var ed = edit, pt = (ed ? ed.draft : mz.plCache[v.key]).map(function (id) { return mz.byId.get(id); }).filter(Boolean);
         var pen = '<button class="sp-editbtn" data-act="sp-edit" title="Edit playlist" aria-label="Edit playlist"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></button>';
         return listPage({ title: pl ? pl.name : 'Playlist', cover: plCov(pl, 300), tint: (pl && mz.artV && mz.artV['pl_' + pl.id] ? 'pl-' + pl.id : pl && pl.c) || (pt[0] && pt[0].c), hue: mzHue(pl ? pl.name : 'p'),
-          edit: !!ed, actionsExtra: !ed && mzIsMobile() && pt.length ? pen : '',
+          edit: !!ed, actionsExtra: !ed && pt.length ? pen : '',
           more: ed || !pl ? '' : '<button class="sp-mmore" data-act="sp-plmenu" data-v="' + esc(pl.id) + '" aria-label="More options"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></button>',
           bar: ed ? '<div class="sp-editbar"><button class="cancel" data-act="sp-edit-cancel"' + (ed.saving ? ' disabled' : '') + '>Cancel</button><b>Editing playlist</b><button class="done" data-act="sp-edit-done"' + (ed.saving ? ' disabled' : '') + '>' + (ed.saving ? 'Saving…' : 'Done') + '</button></div>' + selBar(ed) : '' }, pt);
       }
@@ -1965,76 +1965,6 @@ var mzSp = (function () {
     document.addEventListener('pointerup', function (e) { end(e, false); }, true);
     document.addEventListener('pointercancel', function (e) { if (S && S.on && S.dx >= THRESH) end(e, false); else end(e, true); }, true);
     document.addEventListener('click', function (e) { if (Date.now() - swallow < 450) { e.stopPropagation(); e.preventDefault(); } }, true);
-  })();
-
-  // desktop: press a row in a playlist and drag it somewhere else; the new order is saved when you let go
-  (function () {
-    var P = null, D = null, swallow = 0;
-    function content() { return mzEl('wm-content'); }
-    function move(e) {
-      if (!D) return;
-      D.cy = e.clientY;
-      var y = D.cy - D.sy + (content().scrollTop - D.scroll0);
-      if (!D.sel) D.row.style.transform = 'translateY(' + y + 'px)'; dragLayout(D, y);
-    }
-    function scrollLoop() {
-      if (!D) return;
-      var c = content(), r = c.getBoundingClientRect(), v = 0;
-      if (D.cy < r.top + 70) v = -Math.ceil((r.top + 70 - D.cy) / 6);
-      else if (D.cy > r.bottom - 70) v = Math.ceil((D.cy - (r.bottom - 70)) / 6);
-      if (v) { c.scrollTop += v; move({ clientY: D.cy }); }
-      D.raf = requestAnimationFrame(scrollLoop);
-    }
-    function start(e) {
-      var row = P.row, list = row.parentElement, rows = Array.prototype.slice.call(list.querySelectorAll('.sp-row.trk')), from = rows.indexOf(row);
-      var ids = mz.plCache[mz.view.key] || [], known = ids.filter(function (id) { return mz.byId.has(id); });
-      var shown = rows.map(function (r) { return r.dataset.t; });
-      if (from < 0 || shown.length !== known.length || shown.some(function (id, i) { return id !== known[i]; })) {   // sorted by a column: the rows are not in playlist order
-        P = null; document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); mzToast('Clear the sorting to reorder this playlist'); return;
-      }
-      D = { row: row, rows: rows, ids: shown, from: from, to: from, h: row.offsetHeight, top0: from * row.offsetHeight, sy: P.y, cy: e.clientY, scroll0: content().scrollTop, raf: 0, pid: mz.view.key };
-      if (dsel.pid === D.pid && dsel.ids.size > 1 && dsel.ids.has(shown[from])) D.sel = dsel.ids;
-      rows.forEach(function (r) { r.classList.add('moving'); if (D.sel && D.sel.has(r.dataset.t)) r.classList.add('dragging'); });
-      row.classList.add('dragging'); content().classList.add('reordering');
-      D.raf = requestAnimationFrame(scrollLoop);
-    }
-    function onMove(e) {
-      if (!P) return;
-      if (!D) { if (Math.abs(e.clientY - P.y) < 6 && Math.abs(e.clientX - P.x) < 6) return; start(e); if (!D) return; }
-      move(e);
-    }
-    function onUp(e) {
-      document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); document.removeEventListener('pointercancel', onUp);
-      P = null; if (!D) return;
-      var d = D; D = null; cancelAnimationFrame(d.raf); swallow = Date.now();
-      d.rows.forEach(function (r) { r.style.transform = ''; r.style.transition = ''; r.classList.remove('moving'); });
-      d.rows.forEach(function (r) { r.classList.remove('dragging'); }); content().classList.remove('reordering');
-      if (e.type === 'pointercancel' || d.to === d.from || mz.view.type !== 'playlist' || mz.view.key !== d.pid) return;
-      var ids = mz.plCache[d.pid]; if (!ids) return;
-      var at = []; ids.forEach(function (id, i) { if (mz.byId.has(id)) at.push(i); });         // tracks the library does not know keep their slots
-      if (at.length !== d.rows.length) return;
-      var shown = at.map(function (i) { return ids[i]; }), grabbed = shown[d.from];
-      if (dsel.pid === d.pid && dsel.ids.size > 1 && dsel.ids.has(grabbed)) shown = groupShown(shown, dsel.ids, grabbed, d.to);
-      else { var m = shown.splice(d.from, 1)[0]; shown.splice(d.to, 0, m); }
-      var next = ids.slice(); at.forEach(function (i, k) { next[i] = shown[k]; });
-      mz.plCache[d.pid] = next; mzRender();
-      jpost('/api/music/playlist/' + encodeURIComponent(d.pid) + '/order', { ids: next, base: ids.length }).catch(function (err) {
-        if (/changed elsewhere/.test(err.message || '')) { delete mz.plCache[d.pid]; mzToast('This playlist changed elsewhere. Reloaded it'); }
-        else { mz.plCache[d.pid] = ids; mzToast('Could not save the new order'); }
-        mzRender();
-      });
-    }
-    document.addEventListener('pointerdown', function (e) {
-      if (P || D || mz.theme !== 'spotify' || mz.view.type !== 'playlist' || edit || e.button !== 0 || e.pointerType !== 'mouse') return;
-      if (typeof mzIsMobile === 'function' && mzIsMobile()) return;
-      var t = e.target; if (!t.closest || t.closest('button, a, input, .star, .sp-lk')) return;
-      var row = t.closest('#wm-content .sp-row.trk[data-t]'); if (!row || !row.closest('#music-screen')) return;
-      P = { row: row, x: e.clientX, y: e.clientY };
-      document.addEventListener('pointermove', onMove); document.addEventListener('pointerup', onUp); document.addEventListener('pointercancel', onUp);
-    }, true);
-    document.addEventListener('click', function (e) {                                      // letting go of a drag must not also play the track
-      if (Date.now() - swallow < 350) { e.stopPropagation(); e.preventDefault(); }
-    }, true);
   })();
 
   // Back from the left screen edge: the page follows the finger, and letting go far enough (or flicking) goes back
