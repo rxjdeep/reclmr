@@ -2247,6 +2247,50 @@ var mzSp = (function () {
     }
     n.addEventListener('touchend', tEnd); n.addEventListener('touchcancel', tEnd);
 
+    // Swiping the cover or the title sideways: next / previous song (the cover follows the finger, then slides in again with the new song)
+    (function () {
+      var wrap = n.querySelector('.sp-np-artwrap'), meta = n.querySelector('.sp-np-meta'); if (!wrap) return;
+      var hs = null;
+      function start(e) {
+        if (!npIsOpen || !mzCur() || e.touches.length !== 1 || (e.target.closest && e.target.closest('button, a, input'))) { hs = null; return; }
+        hs = { x: e.touches[0].clientX, y: e.touches[0].clientY, on: false, dx: 0, t0: performance.now() };
+      }
+      function move(e) {
+        if (!hs) return;
+        var f = e.touches[0], dx = f.clientX - hs.x, dy = f.clientY - hs.y;
+        if (!hs.on) {
+          if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { hs = null; return; }                  // downwards: that is the sheet closing, not a swipe
+          if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+          hs.on = true; td = null;                                                                       // sideways: the vertical drag of the sheet must not start
+        }
+        if (e.cancelable) e.preventDefault();
+        hs.dx = dx;
+        var big = Math.abs(dx) > 70; if (big !== hs.big) { hs.big = big; mzHaptic('detent'); }
+        wrap.style.transition = 'none'; wrap.style.transform = 'translateX(' + dx * 0.6 + 'px)'; wrap.style.opacity = String(Math.max(.3, 1 - Math.abs(dx) / 380));
+      }
+      function end(e) {
+        if (!hs) return;
+        var d = hs; hs = null;
+        if (!d.on) return;
+        var dx = d.dx, fast = Math.abs(dx) / Math.max(1, performance.now() - d.t0) > 0.5;
+        if (Math.abs(dx) > 70 || (fast && Math.abs(dx) > 30)) {
+          var dir = dx < 0 ? -1 : 1;                                                                     // finger moved left = next song
+          wrap.style.transition = 'transform .16s ease-in, opacity .16s ease-in'; wrap.style.transform = 'translateX(' + dir * 110 + '%)'; wrap.style.opacity = '0';
+          setTimeout(function () {
+            if (dir < 0) nextSong(); else prevSong();
+            wrap.style.transition = 'none'; wrap.style.transform = 'translateX(' + (-dir * 40) + '%)'; void wrap.offsetWidth;
+            wrap.style.transition = 'transform .24s ease-out, opacity .24s ease-out'; wrap.style.transform = ''; wrap.style.opacity = '';
+          }, 160);
+        } else { wrap.style.transition = 'transform .2s ease, opacity .2s ease'; wrap.style.transform = ''; wrap.style.opacity = ''; }
+      }
+      [wrap, meta].forEach(function (el) {
+        if (!el) return;
+        el.addEventListener('touchstart', start, { passive: true });
+        el.addEventListener('touchmove', move, { passive: false });
+        el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+      });
+    })();
+
     // Opening it: pull the mini player up (pointer events: the mini player has nothing to scroll)
     var g = null;
     function begin(e) {

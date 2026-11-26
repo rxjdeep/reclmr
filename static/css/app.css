@@ -7193,9 +7193,6 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 .mz-askb button:hover, .mz-askx:hover { background: rgba(255,255,255,.26); }
 .mz-askx { opacity: .8; }
 
-/* A–B loop button: text instead of an icon */
-.wm-ab { font: 700 11px/1 system-ui, sans-serif; letter-spacing: .02em; white-space: nowrap; }
-.sp-np-ctl button.ab { width: 40px; font: 700 12px/1 system-ui, sans-serif; letter-spacing: .02em; }
 .wm-menu-sep { height: 1px; margin: 4px 8px; background: rgba(255,255,255,.12); }
 
 /* lyrics editor */
@@ -7236,3 +7233,12 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 .wm.dismissed .wm-transport { display: none !important; }
 .sp-mrow.danger b, .sp-mrow.danger svg { color: #f15e6c; }
 #wm-menu button[data-act="m-delete"] { color: #f15e6c; }
+
+/* A–B loop: a small pill in the seek row (centred under the bar on a phone, after the time on a desktop), so the row of controls stays even */
+.sp-np-times { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.sp-np-times span:last-child { text-align: right; }
+.abpill, .wm-abpill { padding: 2px 10px; border: 1px solid rgba(255,255,255,.28); border-radius: 999px; background: none; color: #b3b3b3; font: 700 11px/1.5 system-ui, sans-serif; letter-spacing: .04em; white-space: nowrap; cursor: pointer; }
+.abpill.on, .wm-abpill.on { color: var(--sp-green, #1db954); border-color: var(--sp-green, #1db954); }
+.wm-seekrow { position: relative; }
+.wm-abpill { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 12px; }      /* hangs off the start of the row (the right side has the quality badge and volume), so the bar stays centred under the controls */
+.wm[data-mzt="glossy"] .wm-abpill.on { color: rgb(var(--ap, 255 80 100)); border-color: currentColor; }
