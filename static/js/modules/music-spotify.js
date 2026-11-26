@@ -227,11 +227,7 @@ var mzSp = (function () {
   }
   function sideHtml() {
     var c = libCore();
-    var vt = mz.view.type;
-    var nav = '<div class="sp-panel sp-nav">' +
-      '<button class="sp-navitem' + (vt === 'home' ? ' on' : '') + '" data-act="sp-home">' + I.home + '<span>Home</span></button>' +
-      '<button class="sp-navitem' + (vt === 'search' ? ' on' : '') + '" data-act="sp-search">' + I.search + '<span>Search</span></button></div>';
-    return nav + '<div class="sp-panel sp-lib"><div class="sp-lib-head"><div class="sp-libtitle">' + I.lib + '<span>Your Library</span></div></div>' +
+    return '<div class="sp-panel sp-lib"><div class="sp-lib-head"><div class="sp-libtitle">' + I.lib + '<span>Your Library</span></div></div>' +
       c.chips + c.tools + '<div class="sp-lib-list">' + c.items.join('') + '</div></div>' +
       '<div class="sp-cp" id="sp-cp"><div class="sp-cp-art" id="sp-cp-art"></div><button class="sp-cp-close" data-act="sp-cover-toggle" aria-label="Hide the album art" title="Hide the album art"><svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M14.5 4.5 8 11 1.5 4.5l1.06-1.06L8 8.88l5.44-5.44z"/></svg></button></div>';
   }
