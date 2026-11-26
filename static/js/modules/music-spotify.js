@@ -1963,6 +1963,101 @@ var mzSp = (function () {
     document.addEventListener('click', function (e) { if (Date.now() - swallow < 450) { e.stopPropagation(); e.preventDefault(); } }, true);
   })();
 
+  // desktop search box: a dropdown under it while you type (suggestions, then songs, artists and albums); Enter opens the full results
+  (function () {
+    var box = null, input = null, panel = null, items = [], act = -1;
+    var SRCH = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>';
+    var CLK = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>';
+    function isOpen() { return !!(panel && panel.classList.contains('open')); }
+    function close() { if (panel) panel.classList.remove('open'); act = -1; }
+    SP.sdClose = close;
+    function build() {
+      if (panel) return true;
+      box = document.querySelector('#music-screen .wm-search'); input = mzEl('wm-search-input'); if (!box || !input) return false;
+      panel = document.createElement('div'); panel.id = 'sp-sd'; panel.className = 'sp-sd'; box.appendChild(panel);
+      var x = document.createElement('button'); x.type = 'button'; x.className = 'sp-sdx'; x.setAttribute('aria-label', 'Clear search'); x.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
+      box.appendChild(x);
+      x.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      x.addEventListener('click', function () { input.value = ''; mz.query = ''; box.classList.remove('has'); input.focus(); paint(); if (mz.view.type === 'search') mzRender(); });
+      panel.addEventListener('mousedown', function (e) { e.preventDefault(); });                // clicking in the list must not blur the box
+      panel.addEventListener('mousemove', function (e) { var r = e.target.closest('.sp-sdi'); if (r) setAct(+r.dataset.i, true); });
+      panel.addEventListener('click', function (e) {
+        var hx = e.target.closest('.sp-sdhx');
+        if (hx) { var q = hx.dataset.q; mz.prefs.searches = searches().filter(function (z) { return z !== q; }); mzSavePrefs(); paint(); return; }
+        var r = e.target.closest('.sp-sdi'); if (r) run(items[+r.dataset.i]);
+      });
+      input.addEventListener('input', function () { box.classList.toggle('has', !!input.value); if (mzSdOn()) paint(); });
+      input.addEventListener('blur', function () { setTimeout(close, 120); });
+      input.addEventListener('keydown', function (e) {
+        if (!mzSdOn()) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          if (!isOpen()) paint();
+          if (!items.length) return;
+          e.preventDefault(); setAct(act < 0 ? (e.key === 'ArrowDown' ? 0 : items.length - 1) : (act + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length);
+        } else if (e.key === 'Escape' && isOpen()) { e.preventDefault(); e.stopPropagation(); close(); }
+        else if (e.key === 'Enter' && isOpen() && act >= 0 && items[act]) { e.preventDefault(); e.stopImmediatePropagation(); run(items[act]); }
+      }, true);
+      document.addEventListener('mousedown', function (e) { if (isOpen() && !box.contains(e.target)) close(); });
+      return true;
+    }
+    function setAct(i, noScroll) {
+      act = i;
+      Array.prototype.forEach.call(panel.querySelectorAll('.sp-sdi'), function (r) { r.classList.toggle('act', +r.dataset.i === i); });
+      var r = panel.querySelector('.sp-sdi[data-i="' + i + '"]'); if (r && !noScroll) r.scrollIntoView({ block: 'nearest' });
+    }
+    function thumb(it) {
+      if (it.k === 'q' || it.k === 'hist') return '<span class="sp-sdth ico">' + (it.k === 'hist' ? CLK : SRCH) + '</span>';
+      var c = it.c; return '<span class="sp-sdth' + (it.k === 'artist' ? ' round' : '') + '" style="--h:' + mzHue(it.title) + '">' + esc((it.title || '?').charAt(0).toUpperCase()) +
+        (c ? '<img loading="lazy" alt="" src="' + esc(mzCoverUrl(c, 80)) + '" onerror="this.remove()">' : '') + '</span>';
+    }
+    function find(q) {
+      var terms = q.toLowerCase().split(/\s+/).filter(Boolean), out = [];
+      function hit(s) { return terms.every(function (t) { return s.indexOf(t) >= 0; }); }
+      function rank(name) { name = name.toLowerCase(); return name === q.toLowerCase() ? 0 : name.indexOf(terms[0]) === 0 ? 1 : 2; }
+      var songs = musicPlaylist.filter(function (t) { return hit(t.k); });
+      var arts = Array.from(mz.artists.values()).filter(function (a) { return hit(a.name.toLowerCase()); });
+      var albs = Array.from(mz.albums.values()).filter(function (a) { return hit((a.name + ' ' + (a.aa || (a.first && a.first.ar) || '')).toLowerCase()); });
+      arts.sort(function (a, b) { return rank(a.name) - rank(b.name) || b.tracks.length - a.tracks.length; });
+      songs.sort(function (a, b) { return rank(a.t || '') - rank(b.t || '') || (b.pc || 0) - (a.pc || 0); });
+      albs.sort(function (a, b) { return rank(a.name) - rank(b.name) || b.tracks.length - a.tracks.length; });
+      arts.slice(0, 2).forEach(function (a) { var f = a.tracks.filter(function (t) { return t.c; })[0]; out.push({ k: 'artist', v: a.id, title: a.name, sub: 'Artist', c: f && f.c, r: rank(a.name) }); });
+      songs.slice(0, 5).forEach(function (t) { out.push({ k: 'song', v: t.f, title: t.t, sub: 'Song • ' + t.ar, c: t.c, r: rank(t.t || '') + 0.5 }); });
+      albs.slice(0, 2).forEach(function (a) { out.push({ k: 'album', v: a.id, title: a.name, sub: 'Album • ' + (a.aa || (a.first && a.first.ar) || ''), c: a.first && a.first.c, r: rank(a.name) + 0.7 }); });
+      out.sort(function (a, b) { return a.r - b.r; });
+      return { rows: out.slice(0, 8), songs: songs };
+    }
+    function paint() {
+      if (!build() || !mzSdOn() || !mz.loaded) return;
+      var q = input.value.trim(), list = [], html = '';
+      if (!q) {
+        searches().slice(0, 8).forEach(function (s) { list.push({ k: 'hist', q: s, title: s }); });
+      } else {
+        var f = find(q), seen = {};
+        searches().filter(function (s) { return s.toLowerCase().indexOf(q.toLowerCase()) >= 0 && s.toLowerCase() !== q.toLowerCase(); }).slice(0, 2).forEach(function (s) { seen[s.toLowerCase()] = 1; list.push({ k: 'hist', q: s, title: s }); });
+        f.songs.slice(0, 12).forEach(function (t) { var s = (t.ar.split(/;\s*/)[0] + ' ' + t.t).trim(); if (list.length < 4 && !seen[s.toLowerCase()] && s.toLowerCase() !== q.toLowerCase()) { seen[s.toLowerCase()] = 1; list.push({ k: 'q', q: s, title: s }); } });
+        list = list.concat(f.rows);
+      }
+      items = list; act = -1;
+      if (!list.length) { panel.innerHTML = q ? '<div class="sp-sdempty">No quick matches. Press Enter to search everything.</div>' : ''; panel.classList.toggle('open', !!q); return; }
+      html = '<div class="sp-sdhint"><span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>Enter</kbd> Search</span></div>';
+      list.forEach(function (it, i) {
+        html += '<div class="sp-sdi" data-i="' + i + '">' + thumb(it) + '<span class="sp-sdt"><b>' + esc(it.title) + '</b>' + (it.sub ? '<small>' + esc(it.sub) + '</small>' : '') + '</span>' +
+          (it.k === 'hist' ? '<button class="sp-sdhx" data-q="' + esc(it.q) + '" aria-label="Remove from search history">' + '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>' : '') + '</div>';
+      });
+      panel.innerHTML = html; panel.classList.add('open');
+    }
+    function run(it) {
+      if (!it) return;
+      var q = input.value.trim();
+      if (it.k === 'q' || it.k === 'hist') { input.value = it.q; box.classList.add('has'); mzSearchRemember(it.q); mzSearch(it.q, true); mzAskMaybe(it.q); close(); input.blur(); return; }
+      if (q) mzSearchRemember(q);
+      close(); input.blur();
+      if (it.k === 'song') { var t = mz.byId.get(it.v); if (t) mzPlayList([t], 0); } else openTarget(it.k, it.v);
+    }
+    document.addEventListener('focusin', function (e) { if (e.target && e.target.id === 'wm-search-input' && mzSdOn()) { if (!panel) build(); paint(); } });
+    SP.sdPaint = paint;
+  })();
+
   // Back from the left screen edge: the page follows the finger, and letting go far enough (or flicking) goes back
   (function () {
     var G = null, EDGE = 36;

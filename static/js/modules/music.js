@@ -2086,8 +2086,10 @@ function mzSearchRemember(q) {
   var l = (Array.isArray(mz.prefs.searches) ? mz.prefs.searches : []).filter(function (x) { return x.toLowerCase() !== q.toLowerCase(); });
   l.unshift(q); mz.prefs.searches = l.slice(0, 12); mzSavePrefs();
 }
-function mzSearch(v) {
+function mzSdOn() { return mz.theme === 'spotify' && typeof mzUseSheet === 'function' && !mzUseSheet(); }       // desktop Spotify: typing opens a dropdown; Enter opens the full results
+function mzSearch(v, now) {
   clearTimeout(mz.searchTimer);
+  if (!now && mzSdOn()) return;
   mz.searchTimer = setTimeout(function () {
     mz.query = v;
     if (v.trim() || (mz.theme === 'spotify' && mz.view.type === 'search')) {
@@ -2100,7 +2102,12 @@ function mzSearch(v) {
       var pv = mz.prevView || { type: mzDefaultType(), key: '' };
       mzGo(pv.type, pv.key);
     }
-  }, 120);
+  }, now ? 0 : 120);
+}
+function mzSearchEnter(v) {                                       // Enter in the search box
+  mzSearchRemember(v);
+  if (mzSdOn()) { mzSearch(v, true); if (typeof mzSp !== 'undefined' && mzSp && mzSp.sdClose) mzSp.sdClose(); }
+  mzAskMaybe(v);
 }
 
 // text shared into the app from another app (Android's Share sheet): open Search with it, once the library is there
@@ -2110,7 +2117,7 @@ function mzShareSearch(q) {
     if (!mz.loaded && tries++ < 60) { setTimeout(go, 250); return; }
     location.hash = '#music';
     var si = mzEl('wm-search-input'); if (si) si.value = q;
-    mzSearch(q);
+    mzSearch(q, true);
   })();
 }
 
@@ -2167,6 +2174,7 @@ function mzThemeMenu(e) {
   m.style.top = Math.min(r.bottom + 6, window.innerHeight - mr.height - 4) + 'px';
 }
 function mzSearchFocus() {
+  if (mzSdOn()) return;
   if (mz.theme === 'spotify' && mz.view.type !== 'search' && mz.loaded) {
     mz.prevView = mz.view; mz.view = { type: 'search', key: '' }; mz.sort = { col: '', dir: 1 };
     navSet('music/search'); mzRender();

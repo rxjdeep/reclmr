@@ -7242,3 +7242,30 @@ input[type=range].mz-loading { animation: mzLoadPulse 1s ease-in-out infinite; }
 .wm-seekrow { position: relative; }
 .wm-abpill { position: absolute; right: 100%; top: 50%; transform: translateY(-50%); margin-right: 12px; }      /* hangs off the start of the row (the right side has the quality badge and volume), so the bar stays centred under the controls */
 .wm[data-mzt="glossy"] .wm-abpill.on { color: rgb(var(--ap, 255 80 100)); border-color: currentColor; }
+
+/* desktop Spotify search: dropdown under the box */
+.wm[data-mzt="spotify"] .wm-search { position: relative; }
+.wm[data-mzt="spotify"] .sp-sdx { display: none; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border: 0; background: none; color: #b3b3b3; border-radius: 50%; cursor: pointer; align-items: center; justify-content: center; padding: 0; }
+.wm[data-mzt="spotify"] .sp-sdx:hover { color: #fff; }
+.wm[data-mzt="spotify"] .wm-search.has .sp-sdx { display: inline-flex; }
+.wm[data-mzt="spotify"] .wm-search.has input { padding-right: 48px; }
+.wm[data-mzt="spotify"] .sp-sd { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 60; max-height: min(70vh, 560px); overflow-y: auto; padding: 8px; background: #1f1f1f; border-radius: 10px; box-shadow: 0 16px 40px rgba(0,0,0,.6); }
+.wm[data-mzt="spotify"] .sp-sd.open { display: block; }
+.wm[data-mzt="spotify"] .sp-sdhint { display: flex; justify-content: space-between; padding: 6px 8px 10px; font-size: 12px; color: #a7a7a7; }
+.wm[data-mzt="spotify"] .sp-sdhint kbd { display: inline-block; min-width: 20px; padding: 1px 5px; margin-right: 4px; border: 1px solid #4d4d4d; border-radius: 4px; font: inherit; font-size: 11px; text-align: center; }
+.wm[data-mzt="spotify"] .sp-sdi { display: flex; align-items: center; gap: 14px; padding: 8px 10px; border-radius: 6px; cursor: pointer; color: #fff; }
+.wm[data-mzt="spotify"] .sp-sdi.act { background: #2f2f2f; }
+.wm[data-mzt="spotify"] .sp-sdth { position: relative; flex: none; width: 44px; height: 44px; border-radius: 4px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: hsl(var(--h, 220) 25% 22%); font-weight: 700; color: #b3b3b3; }
+.wm[data-mzt="spotify"] .sp-sdth.round { border-radius: 50%; }
+.wm[data-mzt="spotify"] .sp-sdth.ico { background: none; color: #b3b3b3; }
+.wm[data-mzt="spotify"] .sp-sdth img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.wm[data-mzt="spotify"] .sp-sdt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.wm[data-mzt="spotify"] .sp-sdt b { font-weight: 500; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wm[data-mzt="spotify"] .sp-sdt small { font-size: 14px; color: #b3b3b3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wm[data-mzt="spotify"] .sp-sdhx { flex: none; width: 28px; height: 28px; border: 0; background: none; color: #b3b3b3; border-radius: 50%; cursor: pointer; display: none; align-items: center; justify-content: center; padding: 0; }
+.wm[data-mzt="spotify"] .sp-sdi:hover .sp-sdhx { display: inline-flex; }
+.wm[data-mzt="spotify"] .sp-sdhx:hover { color: #fff; }
+.wm[data-mzt="spotify"] .sp-sdempty { padding: 16px; color: #b3b3b3; font-size: 14px; }
+.wm[data-mzt="spotify"] .wm-search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
+.wm[data-mzt="spotify"] .sp-sd svg, .wm[data-mzt="spotify"] .sp-sdx svg { position: static; transform: none; left: auto; top: auto; width: auto; height: auto; }
+.wm[data-mzt="spotify"] .sp-sdth.ico svg { width: 22px; height: 22px; color: #b3b3b3; }

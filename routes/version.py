@@ -8,9 +8,19 @@ from flask import Blueprint, jsonify
 
 bp = Blueprint('version', __name__)
 
-VERSION = "0.18.3"
+VERSION = "0.19.0"
 
 CHANGELOG = [
+    {
+        "version": "0.19.0",
+        "date": "2026-11-26",
+        "changes": [
+            "Desktop search dropdown like Spotify",
+            "Typing in the desktop Spotify search box shows a dropdown: suggestions, then songs, artists and albums with pictures",
+            "Arrow keys move, Enter opens the full results, Esc closes, X clears",
+            "Empty box lists recent searches",
+        ]
+    },
     {
         "version": "0.18.3",
         "date": "2026-11-26",
